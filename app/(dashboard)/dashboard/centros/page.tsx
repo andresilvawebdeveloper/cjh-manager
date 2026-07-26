@@ -13,7 +13,7 @@ interface Turma {
   id: number;
   nome: string;
   centro_id: number;
-  centros: { nome: string } | null;
+  centros: { nome: string } | { nome: string }[] | null;
 }
 
 export default function CentrosTurmasPage() {
@@ -36,7 +36,7 @@ export default function CentrosTurmasPage() {
       if (centrosError) throw centrosError;
       setCentros(centrosData || []);
 
-      // 2. Carregar Turmas com proteção para evitar erros de relação
+      // 2. Carregar Turmas
       const { data: turmasData, error: turmasError } = await supabase
         .from('turmas')
         .select(`
@@ -48,7 +48,7 @@ export default function CentrosTurmasPage() {
         .order('nome', { ascending: true });
 
       if (turmasError) throw turmasError;
-      setTurmas(turmasData || []);
+      setTurmas((turmasData as any) || []);
 
     } catch (err: any) {
       console.error('Erro detalhado ao carregar dados:', err);
@@ -85,7 +85,6 @@ export default function CentrosTurmasPage() {
         </div>
       )}
 
-      {/* Lista de Turmas Agrupadas ou em Grelha */}
       <div className="space-y-6">
         <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Turmas Registadas</h2>
 
@@ -96,7 +95,9 @@ export default function CentrosTurmasPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {turmas.map((turma) => {
-              const nomeCentro = turma.centros?.nome || 'Centro não atribuído';
+              const centroObj = Array.isArray(turma.centros) ? turma.centros[0] : turma.centros;
+              const nomeCentro = centroObj?.nome || 'Centro não atribuído';
+              
               return (
                 <div key={turma.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4">
                   <div>
