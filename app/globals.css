@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos globais para a app CJH Manager */
+body {
+  background-color: #f9fafb; /* Cor de fundo cinza muito claro para limpeza visual */
+  color: #1f2937;           /* Cor do texto principal */
+}
+
+/* Opcional: garantir que o logo tem um tamanho consistente */
+img {
+  max-width: 100%;
+  height: auto;
+}
