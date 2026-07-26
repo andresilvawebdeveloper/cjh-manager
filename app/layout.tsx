@@ -6,6 +6,17 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata = {
   title: 'CJH Manager | Clube de Judo Hajime',
   description: 'Sistema de gestão para os centros de treino CJH',
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'CJH Manager',
+  },
 };
 
 export default function RootLayout({
