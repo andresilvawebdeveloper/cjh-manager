@@ -72,6 +72,16 @@ export default function CentrosTurmasPage() {
 
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto">
+      {/* Botão para voltar para trás */}
+      <div>
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 text-xs font-bold text-gray-600 hover:text-blue-600 bg-white border border-gray-200 px-3 py-2 rounded-xl shadow-xs transition-all hover:border-blue-200"
+        >
+          ← Voltar ao Dashboard
+        </Link>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Gestão Global</span>
