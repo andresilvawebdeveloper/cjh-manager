@@ -9,6 +9,7 @@ interface Aluno {
   id: number;
   nome: string;
   data_nascimento: string;
+  graduacao: string;
 }
 
 interface Presenca {
@@ -57,10 +58,40 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Estados do Modal
   const [mostrarModalAluno, setMostrarModalAluno] = useState(false);
   const [novoNomeAluno, setNovoNomeAluno] = useState('');
   const [novaDataNascimento, setNovaDataNascimento] = useState('');
+  const [novaGraduacao, setNovaGraduacao] = useState('Branco');
   const [adicionandoAluno, setAdicionandoAluno] = useState(false);
+
+  const calcularIdadeEAnos = (dataNasc: string) => {
+    if (!dataNasc) return { idade: '-', anoNascimento: '-' };
+    const hoje = new Date();
+    const nascimento = new Date(dataNasc);
+    let idade = hoje.getFullYear() - nascimento.getFullYear();
+    const m = hoje.getMonth() - nascimento.getMonth();
+    if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
+      idade--;
+    }
+    return { idade, anoNascimento: nascimento.getFullYear() };
+  };
+
+  const calcularEscalaoAutomatico = (dataNasc: string) => {
+    if (!dataNasc) return 'Selecione a data de nascimento';
+    const anoNasc = new Date(dataNasc).getFullYear();
+    const anoAtual = new Date().getFullYear();
+    const idade = anoAtual - anoNasc;
+
+    if (idade <= 7) return 'Benjamins';
+    if (idade >= 8 && idade <= 9) return 'Infantis';
+    if (idade >= 10 && idade <= 11) return 'Iniciados';
+    if (idade >= 12 && idade <= 14) return 'Juvenis';
+    if (idade >= 15 && idade <= 17) return 'Cadetes';
+    if (idade >= 18 && idade <= 20) return 'Juniores';
+    if (idade >= 21 && idade <= 35) return 'Seniores';
+    return 'Veteranos';
+  };
 
   const carregarDados = async () => {
     try {
@@ -77,10 +108,7 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
         .eq('id', turmaId)
         .single();
 
-      if (turmaError) {
-        console.error('Erro na query de turmas:', turmaError);
-        throw turmaError;
-      }
+      if (turmaError) throw turmaError;
       setTurma(turmaData as unknown as TurmaDetalhe);
 
       const { data: alunosData, error: alunosError } = await supabase
@@ -89,10 +117,7 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
         .eq('turma_id', turmaId)
         .order('nome', { ascending: true });
 
-      if (alunosError) {
-        console.error('Erro na query de alunos:', alunosError);
-        throw alunosError;
-      }
+      if (alunosError) throw alunosError;
       setAlunos(alunosData || []);
 
       const { data: presencasData, error: presencasError } = await supabase
@@ -100,10 +125,7 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
         .select('*')
         .eq('turma_id', turmaId);
 
-      if (presencasError) {
-        console.error('Erro na query de presencas:', presencasError);
-        throw presencasError;
-      }
+      if (presencasError) throw presencasError;
       setTodasPresencas(presencasData || []);
 
     } catch (err: any) {
@@ -137,7 +159,7 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
     }));
   };
 
- const guardarPresencasDoDia = async () => {
+  const guardarPresencasDoDia = async () => {
     setSaving(true);
     try {
       const payload = alunos.map((aluno) => ({
@@ -152,9 +174,6 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
         .upsert(payload, { onConflict: 'turma_id,aluno_id,data_treino' });
 
       if (error) throw error;
-      
-      // O alert foi removido daqui para ser mais silencioso e fluido
-
       await carregarDados();
     } catch (err: any) {
       alert('Erro ao guardar: ' + err.message);
@@ -162,6 +181,7 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
       setSaving(false);
     }
   };
+
   const adicionarAtleta = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!novoNomeAluno.trim()) return;
@@ -172,6 +192,7 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
         {
           nome: novoNomeAluno.trim(),
           data_nascimento: novaDataNascimento || null,
+          graduacao: novaGraduacao || 'Branco',
           turma_id: Number(turmaId),
         },
       ]);
@@ -180,12 +201,25 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
 
       setNovoNomeAluno('');
       setNovaDataNascimento('');
+      setNovaGraduacao('Branco');
       setMostrarModalAluno(false);
       await carregarDados();
     } catch (err: any) {
       alert('Erro ao adicionar atleta: ' + err.message);
     } finally {
       setAdicionandoAluno(false);
+    }
+  };
+
+  const removerAtleta = async (alunoId: number, nomeAluno: string) => {
+    if (!confirm(`Tem a certeza que pretende remover o atleta "${nomeAluno}"?`)) return;
+
+    try {
+      const { error } = await supabase.from('alunos').delete().eq('id', alunoId);
+      if (error) throw error;
+      await carregarDados();
+    } catch (err: any) {
+      alert('Erro ao remover atleta: ' + err.message);
     }
   };
 
@@ -237,7 +271,7 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
       {mostrarModalAluno && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h2 className="text-lg font-bold text-gray-900">Adicionar Novo Atleta</h2>
+            <h2 className="text-lg font-bold text-gray-900">Registar Novo Atleta</h2>
             <form onSubmit={adicionarAtleta} className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Nome Completo</label>
@@ -254,10 +288,41 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Data de Nascimento</label>
                 <input
                   type="date"
+                  required
                   value={novaDataNascimento}
                   onChange={(e) => setNovaDataNascimento(e.target.value)}
                   className="w-full p-2.5 text-xs border border-gray-300 rounded-xl focus:ring-blue-500"
                 />
+              </div>
+
+              {/* Caixa informativa do Escalão Automático */}
+              {novaDataNascimento && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs">
+                  <span className="font-bold text-blue-900 uppercase">Escalão Calculado:</span>
+                  <span className="font-black text-blue-600 uppercase bg-white px-2 py-1 rounded-md shadow-2xs">
+                    {calcularEscalaoAutomatico(novaDataNascimento)}
+                  </span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Graduação (Cinto)</label>
+                <select
+                  value={novaGraduacao}
+                  onChange={(e) => setNovaGraduacao(e.target.value)}
+                  className="w-full p-2.5 text-xs border border-gray-300 rounded-xl focus:ring-blue-500 bg-white"
+                >
+                  <option value="Branco">Branco</option>
+                  <option value="Branco/Amarelo">Branco/Amarelo</option>
+                  <option value="Amarelo">Amarelo</option>
+                  <option value="Amarelo/Laranja">Amarelo/Laranja</option>
+                  <option value="Laranja">Laranja</option>
+                  <option value="Laranja/Verde">Laranja/Verde</option>
+                  <option value="Verde">Verde</option>
+                  <option value="Azul">Azul</option>
+                  <option value="Castanho">Castanho</option>
+                  <option value="Preto">Preto</option>
+                </select>
               </div>
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
@@ -309,13 +374,16 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
             <thead className="bg-gray-50 text-gray-500 uppercase font-bold sticky top-0">
               <tr>
                 <th className="p-2.5">Atletas</th>
+                <th className="p-2.5 text-center">Escalão</th>
+                <th className="p-2.5 text-center">Graduação</th>
                 <th className="p-2.5 text-center">Estado para o dia {dataSelecionada}</th>
+                <th className="p-2.5 text-center">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {alunos.length === 0 ? (
                 <tr>
-                  <td colSpan={2} className="p-4 text-center text-gray-400 italic">Não existem alunos associados a esta turma. Clique em "Adicionar Atleta" acima.</td>
+                  <td colSpan={5} className="p-4 text-center text-gray-400 italic">Não existem alunos associados a esta turma. Clique em "Adicionar Atleta" acima.</td>
                 </tr>
               ) : (
                 alunos.map((aluno) => {
@@ -323,6 +391,8 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
                   return (
                     <tr key={aluno.id} className="hover:bg-gray-50/50">
                       <td className="p-2.5 font-bold text-gray-900">{aluno.nome}</td>
+                      <td className="p-2.5 text-center font-bold text-amber-700">{calcularEscalaoAutomatico(aluno.data_nascimento)}</td>
+                      <td className="p-2.5 text-center font-semibold text-blue-600">{aluno.graduacao || 'Branco'}</td>
                       <td className="p-2.5 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button
@@ -347,6 +417,14 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
                             -
                           </button>
                         </div>
+                      </td>
+                      <td className="p-2.5 text-center">
+                        <button
+                          onClick={() => removerAtleta(aluno.id, aluno.nome)}
+                          className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg font-bold text-[11px] transition-all cursor-pointer"
+                        >
+                          Remover
+                        </button>
                       </td>
                     </tr>
                   );
@@ -373,6 +451,8 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
                 <tr className="bg-slate-900 text-white">
                   <th className="p-3 border-r border-slate-700 min-w-[180px]">Atletas</th>
                   <th className="p-3 border-r border-slate-700 text-center min-w-[110px]">Ano Nascimento</th>
+                  <th className="p-3 border-r border-slate-700 text-center min-w-[110px]">Escalão</th>
+                  <th className="p-3 border-r border-slate-700 text-center min-w-[100px]">Graduação</th>
                   {Object.entries(mesesObj).map(([mes, datas]) => {
                     const estiloCor = coresMeses[mes] || { bg: 'bg-blue-100', text: 'text-blue-900' };
                     return (
@@ -390,6 +470,8 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
                 <tr className="bg-slate-800 text-slate-200 text-[11px]">
                   <th className="p-2.5 border-r border-slate-700"></th>
                   <th className="p-2.5 border-r border-slate-700 text-center"></th>
+                  <th className="p-2.5 border-r border-slate-700 text-center"></th>
+                  <th className="p-2.5 border-r border-slate-700 text-center"></th>
                   {datasUnicas.map((dataStr) => {
                     const [, mes, dia] = dataStr.split('-');
                     const dataFormatada = `${dia}/${mes}`;
@@ -404,7 +486,7 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
 
               <tbody className="divide-y divide-gray-200 font-medium">
                 {alunos.map((aluno, idx) => {
-                  const anoNascimento = aluno.data_nascimento ? new Date(aluno.data_nascimento).getFullYear() : '-';
+                  const { anoNascimento } = calcularIdadeEAnos(aluno.data_nascimento);
                   const linhaAlternada = idx % 2 === 0 ? 'bg-white' : 'bg-blue-50/30';
 
                   return (
@@ -414,6 +496,12 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
                       </td>
                       <td className="p-3 text-center text-gray-600 border-r border-gray-200 font-semibold">
                         {anoNascimento}
+                      </td>
+                      <td className="p-3 text-center text-amber-700 border-r border-gray-200 font-bold">
+                        {calcularEscalaoAutomatico(aluno.data_nascimento)}
+                      </td>
+                      <td className="p-3 text-center text-blue-600 border-r border-gray-200 font-semibold">
+                        {aluno.graduacao || 'Branco'}
                       </td>
                       {datasUnicas.map((dataStr) => {
                         const registo = todasPresencas.find(
