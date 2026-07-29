@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../../../../lib/supabase/client';
 import { exportarMapaPresencasExcel } from './exportarExcel';
@@ -41,8 +41,9 @@ const coresMeses: Record<string, { bg: string; text: string }> = {
   'Agosto': { bg: 'bg-fuchsia-100', text: 'text-fuchsia-800' },
 };
 
-export default function TurmaDetalhesPage({ params }: { params: { turmaId: string } }) {
-  const turmaId = params.turmaId;
+export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaId: string }> }) {
+  const resolvedParams = use(params);
+  const turmaId = resolvedParams.turmaId;
 
   const [turma, setTurma] = useState<TurmaDetalhe | null>(null);
   const [alunos, setAlunos] = useState<Aluno[]>([]);
@@ -55,6 +56,11 @@ export default function TurmaDetalhesPage({ params }: { params: { turmaId: strin
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const [mostrarModalAluno, setMostrarModalAluno] = useState(false);
+  const [novoNomeAluno, setNovoNomeAluno] = useState('');
+  const [novaDataNascimento, setNovaDataNascimento] = useState('');
+  const [adicionandoAluno, setAdicionandoAluno] = useState(false);
 
   const carregarDados = async () => {
     try {
@@ -71,17 +77,22 @@ export default function TurmaDetalhesPage({ params }: { params: { turmaId: strin
         .eq('id', turmaId)
         .single();
 
-      if (turmaError) throw turmaError;
+      if (turmaError) {
+        console.error('Erro na query de turmas:', turmaError);
+        throw turmaError;
+      }
       setTurma(turmaData as unknown as TurmaDetalhe);
 
-      // Carregar alunos associados a esta turma (ajuste a relação caso utilize uma tabela intermédia tipo 'turma_alunos')
       const { data: alunosData, error: alunosError } = await supabase
         .from('alunos')
         .select('*')
         .eq('turma_id', turmaId)
         .order('nome', { ascending: true });
 
-      if (alunosError) throw alunosError;
+      if (alunosError) {
+        console.error('Erro na query de alunos:', alunosError);
+        throw alunosError;
+      }
       setAlunos(alunosData || []);
 
       const { data: presencasData, error: presencasError } = await supabase
@@ -89,18 +100,24 @@ export default function TurmaDetalhesPage({ params }: { params: { turmaId: strin
         .select('*')
         .eq('turma_id', turmaId);
 
-      if (presencasError) throw presencasError;
+      if (presencasError) {
+        console.error('Erro na query de presencas:', presencasError);
+        throw presencasError;
+      }
       setTodasPresencas(presencasData || []);
 
-    } catch (err) {
-      console.error('Erro ao carregar dados:', err);
+    } catch (err: any) {
+      console.error('Erro detalhado capturado:', err);
+      alert('Erro ao carregar dados: ' + (err.message || JSON.stringify(err)));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    carregarDados();
+    if (turmaId) {
+      carregarDados();
+    }
   }, [turmaId]);
 
   useEffect(() => {
@@ -120,7 +137,7 @@ export default function TurmaDetalhesPage({ params }: { params: { turmaId: strin
     }));
   };
 
-  const guardarPresencasDoDia = async () => {
+ const guardarPresencasDoDia = async () => {
     setSaving(true);
     try {
       const payload = alunos.map((aluno) => ({
@@ -135,12 +152,40 @@ export default function TurmaDetalhesPage({ params }: { params: { turmaId: strin
         .upsert(payload, { onConflict: 'turma_id,aluno_id,data_treino' });
 
       if (error) throw error;
-      alert(`Presenças guardadas com sucesso para ${dataSelecionada}!`);
+      
+      // O alert foi removido daqui para ser mais silencioso e fluido
+
       await carregarDados();
     } catch (err: any) {
       alert('Erro ao guardar: ' + err.message);
     } finally {
       setSaving(false);
+    }
+  };
+  const adicionarAtleta = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novoNomeAluno.trim()) return;
+
+    setAdicionandoAluno(true);
+    try {
+      const { error } = await supabase.from('alunos').insert([
+        {
+          nome: novoNomeAluno.trim(),
+          data_nascimento: novaDataNascimento || null,
+          turma_id: Number(turmaId),
+        },
+      ]);
+
+      if (error) throw error;
+
+      setNovoNomeAluno('');
+      setNovaDataNascimento('');
+      setMostrarModalAluno(false);
+      await carregarDados();
+    } catch (err: any) {
+      alert('Erro ao adicionar atleta: ' + err.message);
+    } finally {
+      setAdicionandoAluno(false);
     }
   };
 
@@ -172,16 +217,68 @@ export default function TurmaDetalhesPage({ params }: { params: { turmaId: strin
         </div>
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setMostrarModalAluno(true)}
+            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
+          >
+            ➕ Adicionar Atleta
+          </button>
+          <button
             onClick={() => exportarMapaPresencasExcel(turma, alunos, todasPresencas)}
             className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
           >
-            📊 Exportar Excel Estilizado (Cores e Meses)
+            📊 Exportar Excel
           </button>
           <Link href="/dashboard/centros" className="text-xs font-bold text-blue-600 hover:underline">
             ← Voltar
           </Link>
         </div>
       </div>
+
+      {mostrarModalAluno && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h2 className="text-lg font-bold text-gray-900">Adicionar Novo Atleta</h2>
+            <form onSubmit={adicionarAtleta} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Nome Completo</label>
+                <input
+                  type="text"
+                  required
+                  value={novoNomeAluno}
+                  onChange={(e) => setNovoNomeAluno(e.target.value)}
+                  placeholder="Ex: Gonçalo Silva"
+                  className="w-full p-2.5 text-xs border border-gray-300 rounded-xl focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Data de Nascimento</label>
+                <input
+                  type="date"
+                  value={novaDataNascimento}
+                  onChange={(e) => setNovaDataNascimento(e.target.value)}
+                  className="w-full p-2.5 text-xs border border-gray-300 rounded-xl focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setMostrarModalAluno(false)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={adicionandoAluno}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl cursor-pointer disabled:opacity-50"
+                >
+                  {adicionandoAluno ? 'A guardar...' : 'Guardar Atleta'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* PAINEL DE MARCAÇÃO EM DIRETO */}
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
@@ -218,7 +315,7 @@ export default function TurmaDetalhesPage({ params }: { params: { turmaId: strin
             <tbody className="divide-y divide-gray-100">
               {alunos.length === 0 ? (
                 <tr>
-                  <td colSpan={2} className="p-4 text-center text-gray-400 italic">Não existem alunos associados a esta turma.</td>
+                  <td colSpan={2} className="p-4 text-center text-gray-400 italic">Não existem alunos associados a esta turma. Clique em "Adicionar Atleta" acima.</td>
                 </tr>
               ) : (
                 alunos.map((aluno) => {
