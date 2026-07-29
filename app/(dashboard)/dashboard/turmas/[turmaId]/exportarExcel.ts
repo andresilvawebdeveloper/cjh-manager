@@ -7,10 +7,19 @@ export function exportarMapaPresencasExcel(turma: any, alunos: any[], todasPrese
     ? turma.turma_horarios.map((h: any) => `${h.hora_inicio.slice(0, 5)} - ${h.hora_fim.slice(0, 5)} (${h.dia_semana})`).join(' | ')
     : 'Horário a definir';
 
-  const datasUnicas = Array.from(new Set(todasPresencas.map((p: any) => p.data_treino))).sort();
+  // Filtrar apenas presenças que tenham uma data válida e mapear corretamente
+  const presencasFormatadas = (todasPresencas || [])
+    .filter((p: any) => p && (p.data || p.data_treino))
+    .map((p: any) => ({
+      ...p,
+      data_treino: p.data || p.data_treino,
+      estado: p.presente === true ? 'Presente' : p.presente === false ? 'Faltou' : '-'
+    }));
+
+  const datasUnicas = Array.from(new Set(presencasFormatadas.map((p: any) => p.data_treino))).filter(Boolean).sort();
 
   if (datasUnicas.length === 0) {
-    alert('Ainda não existem registos de presenças para exportar nesta turma.');
+    alert('Ainda não existem registos de presenças válidos para exportar nesta turma.');
     return;
   }
 
@@ -29,7 +38,6 @@ export function exportarMapaPresencasExcel(turma: any, alunos: any[], todasPrese
     'Agosto': 'D9E1F2',
   };
 
-  // Criar as linhas iniciais com espaço em branco nas colunas das datas para não pintar a vermelho/azul
   const linha1 = ['Época 2025/2026', ''];
   const linha2 = [horariosTexto, ''];
 
@@ -45,13 +53,14 @@ export function exportarMapaPresencasExcel(turma: any, alunos: any[], todasPrese
   let mesAtual = '';
   let inicioIdx = 2;
 
-  datasUnicas.forEach((dataStr, index) => {
+  datasUnicas.forEach((dataStr: any, index: number) => {
+    if (!dataStr) return;
     const dataObj = new Date(dataStr + 'T00:00:00');
     const nomeMes = dataObj.toLocaleString('pt-PT', { month: 'long' });
     const nomeMesFormatado = nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1);
 
-    const [, mes, dia] = dataStr.split('-');
-    const dataFormatada = `${dia}/${mes}`;
+    const partesData = dataStr.split('-');
+    const dataFormatada = partesData.length === 3 ? `${partesData[2]}/${partesData[1]}` : dataStr;
 
     linhaDatas.push(dataFormatada);
 
@@ -75,8 +84,8 @@ export function exportarMapaPresencasExcel(turma: any, alunos: any[], todasPrese
     const anoNascimento = aluno.data_nascimento ? new Date(aluno.data_nascimento).getFullYear() : '';
     const linhaAluno = [aluno.nome, anoNascimento];
 
-    datasUnicas.forEach((dataStr) => {
-      const registo = todasPresencas.find((p: any) => p.aluno_id === aluno.id && p.data_treino === dataStr);
+    datasUnicas.forEach((dataStr: any) => {
+      const registo = presencasFormatadas.find((p: any) => p.aluno_id === aluno.id && p.data_treino === dataStr);
       linhaAluno.push(registo ? registo.estado : '-');
     });
 
@@ -87,11 +96,9 @@ export function exportarMapaPresencasExcel(turma: any, alunos: any[], todasPrese
 
   if (!ws['!merges']) ws['!merges'] = [];
   
-  // Merge apenas nas colunas A e B para a Época e Horário (evita esticar até às datas)
   ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } });
   ws['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 1 } });
 
-  // Merge dinâmico para os meses na linha 3 (índice 2)
   blocosMeses.forEach((bloco) => {
     if (bloco.colFim > bloco.colInicio) {
       ws['!merges'].push({
@@ -128,13 +135,11 @@ export function exportarMapaPresencasExcel(turma: any, alunos: any[], todasPrese
         cell.s.font.bold = true;
       }
 
-      // Linha 1 e 2 apenas nas colunas A e B recebem fundo azul
       if ((R === 0 || R === 1) && C <= 1) {
         cell.s.fill = { fgColor: { rgb: '1F4E78' } };
         cell.s.font = { name: 'Arial', sz: R === 0 ? 11 : 10, bold: true, color: { rgb: 'FFFFFF' } };
       }
 
-      // Linha 3: Meses
       if (R === 2 && C >= 2) {
         const mesNome = cell.v;
         const corHex = coresMeses[mesNome] || 'E2EFDA';
@@ -142,13 +147,11 @@ export function exportarMapaPresencasExcel(turma: any, alunos: any[], todasPrese
         cell.s.font = { name: 'Arial', sz: 10, bold: true, color: { rgb: '000000' } };
       }
 
-      // Linha 4: Cabeçalhos fixos e datas
       if (R === 3) {
         cell.s.fill = { fgColor: { rgb: '2F5597' } };
         cell.s.font = { name: 'Arial', sz: 9, bold: true, color: { rgb: 'FFFFFF' } };
       }
 
-      // Dados (a partir da linha 4)
       if (R >= 4 && C >= 2) {
         if (cell.v === 'Presente') {
           cell.s.font = { name: 'Arial', sz: 10, color: { rgb: '385723' }, bold: true };

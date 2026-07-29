@@ -1,116 +1,63 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../../../../../lib/supabase/client';
 import { exportarMapaPresencasExcel } from './exportarExcel';
 
-interface Aluno {
-  id: number;
-  nome: string;
-  data_nascimento: string;
-  graduacao: string;
-}
-
-interface Presenca {
-  id?: number;
-  aluno_id: number;
-  turma_id: number;
-  data_treino: string;
-  estado: string;
-}
-
-interface TurmaDetalhe {
-  id: number;
-  nome: string;
-  centros: { nome: string } | null;
-  turma_horarios: { dia_semana: string; hora_inicio: string; hora_fim: string }[];
-}
-
-const coresMeses: Record<string, { bg: string; text: string }> = {
-  'Setembro': { bg: 'bg-slate-200', text: 'text-slate-800' },
-  'Outubro': { bg: 'bg-emerald-100', text: 'text-emerald-800' },
-  'Novembro': { bg: 'bg-amber-100', text: 'text-amber-800' },
-  'Dezembro': { bg: 'bg-sky-100', text: 'text-sky-800' },
-  'Janeiro': { bg: 'bg-indigo-100', text: 'text-indigo-800' },
-  'Fevereiro': { bg: 'bg-rose-100', text: 'text-rose-800' },
-  'Março': { bg: 'bg-teal-100', text: 'text-teal-800' },
-  'Abril': { bg: 'bg-purple-100', text: 'text-purple-800' },
-  'Maio': { bg: 'bg-orange-100', text: 'text-orange-800' },
-  'Junho': { bg: 'bg-lime-100', text: 'text-lime-800' },
-  'Julho': { bg: 'bg-cyan-100', text: 'text-cyan-800' },
-  'Agosto': { bg: 'bg-fuchsia-100', text: 'text-fuchsia-800' },
-};
-
-export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaId: string }> }) {
+export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId: string }> }) {
   const resolvedParams = use(params);
   const turmaId = resolvedParams.turmaId;
+  const router = useRouter();
 
-  const [turma, setTurma] = useState<TurmaDetalhe | null>(null);
-  const [alunos, setAlunos] = useState<Aluno[]>([]);
-  const [todasPresencas, setTodasPresencas] = useState<Presenca[]>([]);
-  
-  const [dataSelecionada, setDataSelecionada] = useState<string>(
-    new Date().toISOString().split('T')[0]
-  );
-  const [presencasDoDia, setPresencasDoDia] = useState<Record<number, string>>({});
-  
+  const [turma, setTurma] = useState<any>(null);
+  const [alunos, setAlunos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState('');
 
-  // Estados do Modal
-  const [mostrarModalAluno, setMostrarModalAluno] = useState(false);
-  const [novoNomeAluno, setNovoNomeAluno] = useState('');
-  const [novaDataNascimento, setNovaDataNascimento] = useState('');
-  const [novaGraduacao, setNovaGraduacao] = useState('Branco');
-  const [adicionandoAluno, setAdicionandoAluno] = useState(false);
+  // Estados para adicionar aluno
+  const [nomeAluno, setNomeAluno] = useState('');
+  const [dataNascimento, setDataNascimento] = useState('');
+  const [graduacao, setGraduacao] = useState('Branco');
+  const [escalao, setEscalao] = useState('Benjamins');
+  const [savingAluno, setSavingAluno] = useState(false);
+  const [mostrarFormAluno, setMostrarFormAluno] = useState(false);
 
-  const calcularIdadeEAnos = (dataNasc: string) => {
-    if (!dataNasc) return { idade: '-', anoNascimento: '-' };
-    const hoje = new Date();
-    const nascimento = new Date(dataNasc);
-    let idade = hoje.getFullYear() - nascimento.getFullYear();
-    const m = hoje.getMonth() - nascimento.getMonth();
-    if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
-      idade--;
-    }
-    return { idade, anoNascimento: nascimento.getFullYear() };
-  };
+  // Estados para presenças (Data atual por defeito) -> 'presente' | 'faltou' | null
+  const [dataPresenca, setDataPresenca] = useState(new Date().toISOString().split('T')[0]);
+  const [presencas, setPresencas] = useState<{ [key: number]: boolean | null }>({});
+  const [savingPresencas, setSavingPresencas] = useState(false);
+  const [sucessoPresencas, setSucessoPresencas] = useState('');
 
-  const calcularEscalaoAutomatico = (dataNasc: string) => {
-    if (!dataNasc) return 'Selecione a data de nascimento';
-    const anoNasc = new Date(dataNasc).getFullYear();
-    const anoAtual = new Date().getFullYear();
-    const idade = anoAtual - anoNasc;
+  // Histórico de presenças de todas as datas
+  const [historicoPresencas, setHistoricoPresencas] = useState<any[]>([]);
 
-    if (idade <= 7) return 'Benjamins';
-    if (idade >= 8 && idade <= 9) return 'Infantis';
-    if (idade >= 10 && idade <= 11) return 'Iniciados';
-    if (idade >= 12 && idade <= 14) return 'Juvenis';
-    if (idade >= 15 && idade <= 17) return 'Cadetes';
-    if (idade >= 18 && idade <= 20) return 'Juniores';
-    if (idade >= 21 && idade <= 35) return 'Seniores';
-    return 'Veteranos';
-  };
+  useEffect(() => {
+    carregarDados();
+  }, [turmaId]);
 
   const carregarDados = async () => {
     try {
       setLoading(true);
+      setErro('');
 
+      // 1. Carregar detalhes da turma e horários
       const { data: turmaData, error: turmaError } = await supabase
         .from('turmas')
-        .select(`
-          id,
-          nome,
-          centros ( nome ),
-          turma_horarios ( dia_semana, hora_inicio, hora_fim )
-        `)
+        .select('id, nome, centros(nome), turma_horarios(dia_semana, hora_inicio, hora_fim)')
         .eq('id', turmaId)
-        .single();
+        .maybeSingle();
 
       if (turmaError) throw turmaError;
-      setTurma(turmaData as unknown as TurmaDetalhe);
+      if (!turmaData) {
+        setErro('Turma não encontrada ou sem permissões de acesso.');
+        setLoading(false);
+        return;
+      }
+      setTurma(turmaData);
 
+      // 2. Carregar alunos desta turma
       const { data: alunosData, error: alunosError } = await supabase
         .from('alunos')
         .select('*')
@@ -118,410 +65,464 @@ export default function TurmaDetalhesPage({ params }: { params: Promise<{ turmaI
         .order('nome', { ascending: true });
 
       if (alunosError) throw alunosError;
-      setAlunos(alunosData || []);
+      const listaAlunos = alunosData || [];
+      setAlunos(listaAlunos);
 
-      const { data: presencasData, error: presencasError } = await supabase
-        .from('presencas')
-        .select('*')
-        .eq('turma_id', turmaId);
-
-      if (presencasError) throw presencasError;
-      setTodasPresencas(presencasData || []);
+      // 3. Carregar presenças apenas se houver alunos
+      if (listaAlunos.length > 0) {
+        await carregarPresencasParaData(dataPresenca, listaAlunos);
+        await carregarHistoricoPresencas(listaAlunos);
+      } else {
+        setPresencas({});
+        setHistoricoPresencas([]);
+      }
 
     } catch (err: any) {
       console.error('Erro detalhado capturado:', err);
-      alert('Erro ao carregar dados: ' + (err.message || JSON.stringify(err)));
+      setErro('Erro ao carregar dados: ' + (err.message || JSON.stringify(err)));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (turmaId) {
-      carregarDados();
-    }
-  }, [turmaId]);
+  const carregarPresencasParaData = async (dataStr: string, listaAlunos: any[]) => {
+    if (!listaAlunos || listaAlunos.length === 0) return;
+    try {
+      const idsAlunos = listaAlunos.map(a => a.id);
+      const { data, error } = await supabase
+        .from('presencas')
+        .select('aluno_id, presente')
+        .eq('data', dataStr)
+        .in('aluno_id', idsAlunos);
 
-  useEffect(() => {
-    const mapaPresencasDia: Record<number, string> = {};
-    todasPresencas
-      .filter((p) => p.data_treino === dataSelecionada)
-      .forEach((p) => {
-        mapaPresencasDia[p.aluno_id] = p.estado;
+      if (error) throw error;
+
+      const mapaPresencas: { [key: number]: boolean | null } = {};
+      listaAlunos.forEach(a => {
+        mapaPresencas[a.id] = null;
       });
-    setPresencasDoDia(mapaPresencasDia);
-  }, [dataSelecionada, todasPresencas]);
 
-  const alterarEstadoPresenca = (alunoId: number, novoEstado: string) => {
-    setPresencasDoDia((prev) => ({
+      data?.forEach(p => {
+        mapaPresencas[p.aluno_id] = p.presente;
+      });
+      setPresencas(mapaPresencas);
+    } catch (err) {
+      console.error('Erro ao carregar presenças:', err);
+    }
+  };
+
+  const carregarHistoricoPresencas = async (listaAlunos: any[]) => {
+    if (!listaAlunos || listaAlunos.length === 0) return;
+    try {
+      const idsAlunos = listaAlunos.map(a => a.id);
+      const { data, error } = await supabase
+        .from('presencas')
+        .select('*, alunos(nome)')
+        .in('aluno_id', idsAlunos)
+        .order('data', { ascending: false });
+
+      if (error) throw error;
+      setHistoricoPresencas(data || []);
+    } catch (err) {
+      console.error('Erro ao carregar histórico de presenças:', err);
+    }
+  };
+
+  const mudarDataPresenca = (novaData: string) => {
+    setDataPresenca(novaData);
+    if (alunos.length > 0) {
+      carregarPresencasParaData(novaData, alunos);
+    }
+  };
+
+  const definirEstadoPresenca = (alunoId: number, estado: boolean | null) => {
+    setPresencas(prev => ({
       ...prev,
-      [alunoId]: novoEstado,
+      [alunoId]: estado
     }));
   };
 
-  const guardarPresencasDoDia = async () => {
-    setSaving(true);
+  const guardarPresencas = async () => {
+    if (alunos.length === 0) return;
+    setSavingPresencas(true);
+    setSucessoPresencas('');
     try {
-      const payload = alunos.map((aluno) => ({
-        turma_id: Number(turmaId),
-        aluno_id: aluno.id,
-        data_treino: dataSelecionada,
-        estado: presencasDoDia[aluno.id] || '-',
-      }));
+      const registos = alunos
+        .filter(aluno => presencas[aluno.id] !== null && presencas[aluno.id] !== undefined)
+        .map(aluno => {
+          const valorPresente = !!presencas[aluno.id];
+          return {
+            aluno_id: aluno.id,
+            turma_id: Number(turmaId),
+            data: dataPresenca,
+            presente: valorPresente,
+            estado: valorPresente ? 'Presente' : 'Faltou'
+          };
+        });
+
+      if (registos.length === 0) {
+        alert('Selecione pelo menos um estado (Presente ou Faltou) antes de guardar.');
+        setSavingPresencas(false);
+        return;
+      }
 
       const { error } = await supabase
         .from('presencas')
-        .upsert(payload, { onConflict: 'turma_id,aluno_id,data_treino' });
+        .upsert(registos, { onConflict: 'aluno_id,data' });
 
       if (error) throw error;
-      await carregarDados();
+      setSucessoPresencas('Presenças guardadas com sucesso!');
+      carregarHistoricoPresencas(alunos);
+      setTimeout(() => setSucessoPresencas(''), 3000);
     } catch (err: any) {
-      alert('Erro ao guardar: ' + err.message);
+      alert('Erro ao guardar presenças: ' + err.message);
     } finally {
-      setSaving(false);
+      setSavingPresencas(false);
     }
   };
 
-  const adicionarAtleta = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!novoNomeAluno.trim()) return;
+  const removerPresencasData = async () => {
+    if (!confirm(`Tem a certeza de que deseja remover todas as presenças registadas para a data ${dataPresenca}?`)) {
+      return;
+    }
 
-    setAdicionandoAluno(true);
+    setSavingPresencas(true);
+    try {
+      const idsAlunos = alunos.map(a => a.id);
+      if (idsAlunos.length === 0) return;
+
+      const { error } = await supabase
+        .from('presencas')
+        .delete()
+        .eq('data', dataPresenca)
+        .in('aluno_id', idsAlunos);
+
+      if (error) throw error;
+
+      // Limpar estado local
+      const mapaVazio: { [key: number]: null } = {};
+      alunos.forEach(a => { mapaVazio[a.id] = null; });
+      setPresencas(mapaVazio);
+
+      setSucessoPresencas('Presenças da data removidas com sucesso!');
+      carregarHistoricoPresencas(alunos);
+      setTimeout(() => setSucessoPresencas(''), 3000);
+    } catch (err: any) {
+      alert('Erro ao remover presenças: ' + err.message);
+    } finally {
+      setSavingPresencas(false);
+    }
+  };
+
+  const adicionarAluno = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingAluno(true);
+    setErro('');
+
     try {
       const { error } = await supabase.from('alunos').insert([
         {
-          nome: novoNomeAluno.trim(),
-          data_nascimento: novaDataNascimento || null,
-          graduacao: novaGraduacao || 'Branco',
+          nome: nomeAluno,
+          data_nascimento: dataNascimento || null,
+          graduacao,
+          escalao,
           turma_id: Number(turmaId),
-        },
+        }
       ]);
 
       if (error) throw error;
 
-      setNovoNomeAluno('');
-      setNovaDataNascimento('');
-      setNovaGraduacao('Branco');
-      setMostrarModalAluno(false);
-      await carregarDados();
+      setNomeAluno('');
+      setDataNascimento('');
+      setGraduacao('Branco');
+      setEscalao('Benjamins');
+      setMostrarFormAluno(false);
+      carregarDados();
     } catch (err: any) {
-      alert('Erro ao adicionar atleta: ' + err.message);
+      console.error('Erro detalhado capturado:', err);
+      setErro('Erro ao adicionar atleta: ' + (err.message || JSON.stringify(err)));
     } finally {
-      setAdicionandoAluno(false);
+      setSavingAluno(false);
     }
   };
-
-  const removerAtleta = async (alunoId: number, nomeAluno: string) => {
-    if (!confirm(`Tem a certeza que pretende remover o atleta "${nomeAluno}"?`)) return;
-
-    try {
-      const { error } = await supabase.from('alunos').delete().eq('id', alunoId);
-      if (error) throw error;
-      await carregarDados();
-    } catch (err: any) {
-      alert('Erro ao remover atleta: ' + err.message);
-    }
-  };
-
-  const datasUnicas = Array.from(new Set(todasPresencas.map((p) => p.data_treino))).sort();
-
-  const mesesObj: Record<string, string[]> = {};
-  datasUnicas.forEach((dataStr) => {
-    const dataObj = new Date(dataStr + 'T00:00:00');
-    const nomeMes = dataObj.toLocaleString('pt-PT', { month: 'long' });
-    const nomeMesFormatado = nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1);
-    if (!mesesObj[nomeMesFormatado]) {
-      mesesObj[nomeMesFormatado] = [];
-    }
-    mesesObj[nomeMesFormatado].push(dataStr);
-  });
 
   if (loading) {
-    return <div className="p-8 text-center text-xs text-gray-500">A carregar mapa de presenças...</div>;
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs text-gray-500">A carregar dados da turma...</div>;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl mx-auto p-6">
+      {/* Cabeçalho */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">
-            {turma?.centros?.nome || 'Centro'}
-          </span>
+          <Link href="/dashboard/centros" className="text-xs font-bold text-gray-500 hover:text-blue-600 block mb-2">← Voltar aos Centros</Link>
+          <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">{turma?.centros?.nome || 'Centro'}</span>
           <h1 className="text-2xl font-black text-gray-900 mt-1">{turma?.nome}</h1>
         </div>
-        <div className="flex items-center gap-3">
+
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setMostrarModalAluno(true)}
-            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
-          >
-            ➕ Adicionar Atleta
-          </button>
-          <button
-            onClick={() => exportarMapaPresencasExcel(turma, alunos, todasPresencas)}
+            onClick={() => exportarMapaPresencasExcel(turma, alunos, historicoPresencas)}
             className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
           >
             📊 Exportar Excel
           </button>
-          <Link href="/dashboard/centros" className="text-xs font-bold text-blue-600 hover:underline">
-            ← Voltar
-          </Link>
+          <button
+            onClick={() => setMostrarFormAluno(!mostrarFormAluno)}
+            className="px-4 py-2.5 bg-blue-950 hover:bg-blue-900 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
+          >
+            {mostrarFormAluno ? '✕ Fechar Formulário' : '＋ Adicionar Atleta'}
+          </button>
         </div>
       </div>
 
-      {mostrarModalAluno && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h2 className="text-lg font-bold text-gray-900">Registar Novo Atleta</h2>
-            <form onSubmit={adicionarAtleta} className="space-y-3">
+      {erro && (
+        <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl whitespace-pre-wrap">
+          {erro}
+        </div>
+      )}
+
+      {/* Formulário para Adicionar Atleta */}
+      {mostrarFormAluno && (
+        <div className="bg-white p-6 rounded-2xl border border-blue-900/10 shadow-lg space-y-4 transition-all">
+          <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Registar Novo Atleta</h2>
+
+          <form onSubmit={adicionarAluno} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Nome Completo</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Nome do Atleta</label>
                 <input
                   type="text"
                   required
-                  value={novoNomeAluno}
-                  onChange={(e) => setNovoNomeAluno(e.target.value)}
-                  placeholder="Ex: Gonçalo Silva"
-                  className="w-full p-2.5 text-xs border border-gray-300 rounded-xl focus:ring-blue-500"
+                  value={nomeAluno}
+                  onChange={(e) => setNomeAluno(e.target.value)}
+                  placeholder="Ex: João Silva"
+                  className="w-full p-3 text-xs border border-gray-300 rounded-xl focus:ring-blue-900 bg-white text-gray-900"
                 />
               </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Data de Nascimento</label>
                 <input
                   type="date"
-                  required
-                  value={novaDataNascimento}
-                  onChange={(e) => setNovaDataNascimento(e.target.value)}
-                  className="w-full p-2.5 text-xs border border-gray-300 rounded-xl focus:ring-blue-500"
+                  value={dataNascimento}
+                  onChange={(e) => setDataNascimento(e.target.value)}
+                  className="w-full p-3 text-xs border border-gray-300 rounded-xl focus:ring-blue-900 bg-white text-gray-900"
                 />
               </div>
 
-              {/* Caixa informativa do Escalão Automático */}
-              {novaDataNascimento && (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs">
-                  <span className="font-bold text-blue-900 uppercase">Escalão Calculado:</span>
-                  <span className="font-black text-blue-600 uppercase bg-white px-2 py-1 rounded-md shadow-2xs">
-                    {calcularEscalaoAutomatico(novaDataNascimento)}
-                  </span>
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Escalão</label>
+                <select
+                  value={escalao}
+                  onChange={(e) => setEscalao(e.target.value)}
+                  className="w-full p-3 text-xs border border-gray-300 rounded-xl focus:ring-blue-900 bg-white text-gray-900"
+                >
+                  <option value="Benjamins">Benjamins</option>
+                  <option value="Infantis">Infantis</option>
+                  <option value="Iniciados">Iniciados</option>
+                  <option value="Juvenis">Juvenis</option>
+                  <option value="Cadetes">Cadetes</option>
+                  <option value="Juniores">Juniores</option>
+                  <option value="Seniores">Seniores</option>
+                </select>
+              </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Graduação (Cinto)</label>
                 <select
-                  value={novaGraduacao}
-                  onChange={(e) => setNovaGraduacao(e.target.value)}
-                  className="w-full p-2.5 text-xs border border-gray-300 rounded-xl focus:ring-blue-500 bg-white"
+                  value={graduacao}
+                  onChange={(e) => setGraduacao(e.target.value)}
+                  className="w-full p-3 text-xs border border-gray-300 rounded-xl focus:ring-blue-900 bg-white text-gray-900"
                 >
                   <option value="Branco">Branco</option>
-                  <option value="Branco/Amarelo">Branco/Amarelo</option>
                   <option value="Amarelo">Amarelo</option>
-                  <option value="Amarelo/Laranja">Amarelo/Laranja</option>
                   <option value="Laranja">Laranja</option>
-                  <option value="Laranja/Verde">Laranja/Verde</option>
                   <option value="Verde">Verde</option>
                   <option value="Azul">Azul</option>
                   <option value="Castanho">Castanho</option>
                   <option value="Preto">Preto</option>
                 </select>
               </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setMostrarModalAluno(false)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={adicionandoAluno}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl cursor-pointer disabled:opacity-50"
-                >
-                  {adicionandoAluno ? 'A guardar...' : 'Guardar Atleta'}
-                </button>
-              </div>
-            </form>
-          </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setMostrarFormAluno(false)}
+                className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={savingAluno}
+                className="px-5 py-2.5 bg-blue-950 hover:bg-blue-900 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
+              >
+                {savingAluno ? 'A guardar...' : '💾 Guardar Atleta'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
-      {/* PAINEL DE MARCAÇÃO EM DIRETO */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Modo de Marcação de Aula</h2>
-            <p className="text-xs text-gray-400">Escolha o dia da aula para marcar em direto ou consultar o passado.</p>
-          </div>
-          <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-xl border border-gray-200">
-            <input
-              type="date"
-              value={dataSelecionada}
-              onChange={(e) => setDataSelecionada(e.target.value)}
-              className="bg-white border border-gray-300 text-gray-900 text-xs font-bold rounded-lg p-2 focus:ring-blue-500"
-            />
+      {/* Registo de Presenças Diário */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden space-y-4">
+        <div className="p-4 border-b border-gray-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4">
+          <h2 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Registar Presenças ({alunos.length} Atletas)</h2>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-600">Data:</span>
+              <input
+                type="date"
+                value={dataPresenca}
+                onChange={(e) => mudarDataPresenca(e.target.value)}
+                className="p-2 text-xs border border-gray-300 rounded-xl bg-white text-gray-900 font-medium"
+              />
+            </div>
             <button
-              onClick={guardarPresencasDoDia}
-              disabled={saving}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs cursor-pointer shadow-sm disabled:opacity-50"
+              onClick={guardarPresencas}
+              disabled={savingPresencas || alunos.length === 0}
+              className="px-4 py-2 bg-blue-950 hover:bg-blue-900 text-white font-bold rounded-xl text-xs shadow transition-all cursor-pointer disabled:opacity-50"
             >
-              {saving ? 'A guardar...' : `💾 Guardar (${dataSelecionada})`}
+              {savingPresencas ? 'A guardar...' : '💾 Guardar Presenças'}
+            </button>
+            <button
+              onClick={removerPresencasData}
+              disabled={savingPresencas || alunos.length === 0}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs shadow transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+            >
+              🗑️ Remover Presenças (Data)
             </button>
           </div>
         </div>
 
-        <div className="overflow-x-auto max-h-60 border border-gray-100 rounded-xl">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-gray-50 text-gray-500 uppercase font-bold sticky top-0">
-              <tr>
-                <th className="p-2.5">Atletas</th>
-                <th className="p-2.5 text-center">Escalão</th>
-                <th className="p-2.5 text-center">Graduação</th>
-                <th className="p-2.5 text-center">Estado para o dia {dataSelecionada}</th>
-                <th className="p-2.5 text-center">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {alunos.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="p-4 text-center text-gray-400 italic">Não existem alunos associados a esta turma. Clique em "Adicionar Atleta" acima.</td>
+        {sucessoPresencas && (
+          <div className="mx-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl">
+            {sucessoPresencas}
+          </div>
+        )}
+
+        {alunos.length === 0 ? (
+          <div className="p-8 text-center text-xs text-gray-500">Ainda não existem atletas registados nesta turma.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                  <th className="p-4">Nome do Atleta</th>
+                  <th className="p-4">Data de Nascimento</th>
+                  <th className="p-4">Escalão</th>
+                  <th className="p-4">Graduação</th>
+                  <th className="p-4 text-center">Estado (Presente / Faltou / -)</th>
                 </tr>
-              ) : (
-                alunos.map((aluno) => {
-                  const estado = presencasDoDia[aluno.id] || '-';
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-xs">
+                {alunos.map((aluno) => {
+                  const estadoAtual = presencas[aluno.id];
                   return (
-                    <tr key={aluno.id} className="hover:bg-gray-50/50">
-                      <td className="p-2.5 font-bold text-gray-900">{aluno.nome}</td>
-                      <td className="p-2.5 text-center font-bold text-amber-700">{calcularEscalaoAutomatico(aluno.data_nascimento)}</td>
-                      <td className="p-2.5 text-center font-semibold text-blue-600">{aluno.graduacao || 'Branco'}</td>
-                      <td className="p-2.5 text-center">
-                        <div className="flex items-center justify-center gap-2">
+                    <tr key={aluno.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="p-4 font-bold text-gray-900">{aluno.nome}</td>
+                      <td className="p-4 text-gray-600">{aluno.data_nascimento || 'Não definida'}</td>
+                      <td className="p-4 text-gray-600">
+                        <span className="px-2 py-1 bg-blue-50 text-blue-700 font-bold rounded-lg border border-blue-100">
+                          {aluno.escalao || 'Geral'}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-600">
+                        <span className="px-2 py-1 bg-slate-100 text-slate-800 font-bold rounded-lg border border-slate-200">
+                          {aluno.graduacao || 'Branco'}
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <div className="inline-flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200">
                           <button
                             type="button"
-                            onClick={() => alterarEstadoPresenca(aluno.id, 'Presente')}
-                            className={`px-2.5 py-1 rounded-lg font-bold text-[11px] ${estado === 'Presente' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-emerald-100'}`}
+                            onClick={() => definirEstadoPresenca(aluno.id, true)}
+                            className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
+                              estadoAtual === true
+                                ? 'bg-emerald-600 text-white shadow-sm'
+                                : 'text-emerald-700 hover:bg-emerald-50'
+                            }`}
                           >
                             Presente
                           </button>
+                          
                           <button
                             type="button"
-                            onClick={() => alterarEstadoPresenca(aluno.id, 'Faltou')}
-                            className={`px-2.5 py-1 rounded-lg font-bold text-[11px] ${estado === 'Faltou' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-red-100'}`}
+                            onClick={() => definirEstadoPresenca(aluno.id, false)}
+                            className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
+                              estadoAtual === false
+                                ? 'bg-red-600 text-white shadow-sm'
+                                : 'text-red-700 hover:bg-red-50'
+                            }`}
                           >
                             Faltou
                           </button>
+
                           <button
                             type="button"
-                            onClick={() => alterarEstadoPresenca(aluno.id, '-')}
-                            className={`px-2.5 py-1 rounded-lg font-bold text-[11px] ${estado === '-' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}
+                            onClick={() => definirEstadoPresenca(aluno.id, null)}
+                            className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
+                              estadoAtual === null || estadoAtual === undefined
+                                ? 'bg-gray-700 text-white shadow-sm'
+                                : 'text-gray-600 hover:bg-gray-200'
+                            }`}
                           >
                             -
                           </button>
                         </div>
                       </td>
-                      <td className="p-2.5 text-center">
-                        <button
-                          onClick={() => removerAtleta(aluno.id, aluno.nome)}
-                          className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg font-bold text-[11px] transition-all cursor-pointer"
-                        >
-                          Remover
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* MAPA HISTÓRICO VISUAL */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-        <div>
-          <h2 className="text-base font-bold text-gray-900">Mapa Histórico da Época (Acumulado)</h2>
-          <p className="text-xs text-gray-400">Visualização em grelha com os meses coloridos e todas as aulas dadas.</p>
-        </div>
-
-        {datasUnicas.length === 0 ? (
-          <p className="text-xs text-gray-400 py-8 text-center italic">Ainda não existem aulas registadas nesta turma.</p>
-        ) : (
-          <div className="overflow-x-auto border border-gray-200 rounded-xl shadow-xs">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-900 text-white">
-                  <th className="p-3 border-r border-slate-700 min-w-[180px]">Atletas</th>
-                  <th className="p-3 border-r border-slate-700 text-center min-w-[110px]">Ano Nascimento</th>
-                  <th className="p-3 border-r border-slate-700 text-center min-w-[110px]">Escalão</th>
-                  <th className="p-3 border-r border-slate-700 text-center min-w-[100px]">Graduação</th>
-                  {Object.entries(mesesObj).map(([mes, datas]) => {
-                    const estiloCor = coresMeses[mes] || { bg: 'bg-blue-100', text: 'text-blue-900' };
-                    return (
-                      <th
-                        key={mes}
-                        colSpan={datas.length}
-                        className={`p-2.5 text-center font-black uppercase text-[11px] border-r border-b border-slate-300 ${estiloCor.bg} ${estiloCor.text}`}
-                      >
-                        {mes}
-                      </th>
-                    );
-                  })}
-                </tr>
-
-                <tr className="bg-slate-800 text-slate-200 text-[11px]">
-                  <th className="p-2.5 border-r border-slate-700"></th>
-                  <th className="p-2.5 border-r border-slate-700 text-center"></th>
-                  <th className="p-2.5 border-r border-slate-700 text-center"></th>
-                  <th className="p-2.5 border-r border-slate-700 text-center"></th>
-                  {datasUnicas.map((dataStr) => {
-                    const [, mes, dia] = dataStr.split('-');
-                    const dataFormatada = `${dia}/${mes}`;
-                    return (
-                      <th key={dataStr} className="p-2.5 text-center border-r border-slate-700 font-semibold whitespace-nowrap">
-                        {dataFormatada}
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-gray-200 font-medium">
-                {alunos.map((aluno, idx) => {
-                  const { anoNascimento } = calcularIdadeEAnos(aluno.data_nascimento);
-                  const linhaAlternada = idx % 2 === 0 ? 'bg-white' : 'bg-blue-50/30';
-
-                  return (
-                    <tr key={aluno.id} className={linhaAlternada}>
-                      <td className="p-3 font-bold text-gray-900 border-r border-gray-200 whitespace-nowrap">
-                        {aluno.nome}
-                      </td>
-                      <td className="p-3 text-center text-gray-600 border-r border-gray-200 font-semibold">
-                        {anoNascimento}
-                      </td>
-                      <td className="p-3 text-center text-amber-700 border-r border-gray-200 font-bold">
-                        {calcularEscalaoAutomatico(aluno.data_nascimento)}
-                      </td>
-                      <td className="p-3 text-center text-blue-600 border-r border-gray-200 font-semibold">
-                        {aluno.graduacao || 'Branco'}
-                      </td>
-                      {datasUnicas.map((dataStr) => {
-                        const registo = todasPresencas.find(
-                          (p) => p.aluno_id === aluno.id && p.data_treino === dataStr
-                        );
-                        const estado = registo ? registo.estado : '-';
-
-                        let corEstado = 'text-gray-400 font-normal';
-                        if (estado === 'Presente') corEstado = 'text-emerald-700 font-bold';
-                        if (estado === 'Faltou') corEstado = 'text-red-600 font-bold';
-
-                        return (
-                          <td key={dataStr} className={`p-3 text-center border-r border-gray-200 whitespace-nowrap ${corEstado}`}>
-                            {estado}
-                          </td>
-                        );
-                      })}
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Histórico de Presenças Registadas */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden space-y-4">
+        <div className="p-4 border-b border-gray-100 bg-slate-50/50">
+          <h2 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Histórico de Presenças Registadas</h2>
+        </div>
+
+        {historicoPresencas.length === 0 ? (
+          <div className="p-8 text-center text-xs text-gray-500">Ainda não existem registos de presenças guardados.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                  <th className="p-4">Data</th>
+                  <th className="p-4">Atleta</th>
+                  <th className="p-4 text-center">Estado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-xs">
+                {historicoPresencas.map((registo) => (
+                  <tr key={registo.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="p-4 font-bold text-gray-900">📅 {registo.data}</td>
+                    <td className="p-4 font-bold text-gray-800">{registo.alunos?.nome || 'Atleta'}</td>
+                    <td className="p-4 text-center">
+                      {registo.presente === true ? (
+                        <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Presente
+                        </span>
+                      ) : registo.presente === false ? (
+                        <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-red-50 text-red-700 border border-red-200">
+                          Faltou
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                          -
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
