@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase/client'; // Ajuste o caminho se necessário
 
@@ -10,6 +10,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Forçar o término de sessão ao entrar na página de login para nunca reter sessões antigas
+  useEffect(() => {
+    supabase.auth.signOut();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
