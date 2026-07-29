@@ -1,21 +1,14 @@
+import type { Metadata } from 'next';
 import './globals.css';
-import { Inter } from 'next/font/google';
 
-const inter = Inter({ subsets: ['latin'] });
-
-export const metadata = {
-  title: 'CJH Manager | Clube de Judo Hajime',
-  description: 'Sistema de gestão para os centros de treino CJH',
+export const metadata: Metadata = {
+  title: 'CJH Manager',
+  description: 'CJH Manager - Clube de Judo Hajime',
   manifest: '/manifest.json',
   icons: {
-    icon: '/logo.png',
-    shortcut: '/logo.png',
-    apple: '/logo.png',
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: 'CJH Manager',
+    icon: '/logo-clube.png',
+    shortcut: '/logo-clube.png',
+    apple: '/logo-clube.png',
   },
 };
 
@@ -26,8 +19,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt">
-      <body className={inter.className}>
-        {/* Apenas renderiza o conteúdo da página atual (Login na raiz, Dashboard nas respetivas rotas) */}
+      <body className="bg-slate-50 text-gray-900 antialiased">
         {children}
       </body>
     </html>
