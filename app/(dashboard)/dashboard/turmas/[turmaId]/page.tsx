@@ -74,9 +74,11 @@ export default function TurmaDetalhesPage({ params }: { params: { turmaId: strin
       if (turmaError) throw turmaError;
       setTurma(turmaData as unknown as TurmaDetalhe);
 
+      // Carregar alunos associados a esta turma (ajuste a relação caso utilize uma tabela intermédia tipo 'turma_alunos')
       const { data: alunosData, error: alunosError } = await supabase
         .from('alunos')
         .select('*')
+        .eq('turma_id', turmaId)
         .order('nome', { ascending: true });
 
       if (alunosError) throw alunosError;
@@ -214,39 +216,45 @@ export default function TurmaDetalhesPage({ params }: { params: { turmaId: strin
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {alunos.map((aluno) => {
-                const estado = presencasDoDia[aluno.id] || '-';
-                return (
-                  <tr key={aluno.id} className="hover:bg-gray-50/50">
-                    <td className="p-2.5 font-bold text-gray-900">{aluno.nome}</td>
-                    <td className="p-2.5 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => alterarEstadoPresenca(aluno.id, 'Presente')}
-                          className={`px-2.5 py-1 rounded-lg font-bold text-[11px] ${estado === 'Presente' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-emerald-100'}`}
-                        >
-                          Presente
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => alterarEstadoPresenca(aluno.id, 'Faltou')}
-                          className={`px-2.5 py-1 rounded-lg font-bold text-[11px] ${estado === 'Faltou' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-red-100'}`}
-                        >
-                          Faltou
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => alterarEstadoPresenca(aluno.id, '-')}
-                          className={`px-2.5 py-1 rounded-lg font-bold text-[11px] ${estado === '-' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}
-                        >
-                          -
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {alunos.length === 0 ? (
+                <tr>
+                  <td colSpan={2} className="p-4 text-center text-gray-400 italic">Não existem alunos associados a esta turma.</td>
+                </tr>
+              ) : (
+                alunos.map((aluno) => {
+                  const estado = presencasDoDia[aluno.id] || '-';
+                  return (
+                    <tr key={aluno.id} className="hover:bg-gray-50/50">
+                      <td className="p-2.5 font-bold text-gray-900">{aluno.nome}</td>
+                      <td className="p-2.5 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => alterarEstadoPresenca(aluno.id, 'Presente')}
+                            className={`px-2.5 py-1 rounded-lg font-bold text-[11px] ${estado === 'Presente' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-emerald-100'}`}
+                          >
+                            Presente
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => alterarEstadoPresenca(aluno.id, 'Faltou')}
+                            className={`px-2.5 py-1 rounded-lg font-bold text-[11px] ${estado === 'Faltou' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-red-100'}`}
+                          >
+                            Faltou
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => alterarEstadoPresenca(aluno.id, '-')}
+                            className={`px-2.5 py-1 rounded-lg font-bold text-[11px] ${estado === '-' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400'}`}
+                          >
+                            -
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
