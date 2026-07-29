@@ -76,12 +76,13 @@ export default function CentrosPage() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Gestão de Instalações</span>
-          <h1 className="text-2xl font-black text-gray-900 mt-1">Centros de Treino</h1>
-        </div>
+      <div>
+        <Link href="/dashboard" className="text-xs font-bold text-gray-500 hover:text-blue-600 block mb-2">← Voltar ao Dashboard</Link>
+        <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Gestão de Instalações</span>
+        <h1 className="text-2xl font-black text-gray-900 mt-1">Centros de Treino</h1>
+      </div>
 
+      <div className="flex items-center justify-end">
         <Link
           href="/dashboard/centros/novo"
           className="px-4 py-2.5 bg-blue-950 hover:bg-blue-900 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
