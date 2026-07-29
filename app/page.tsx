@@ -1,105 +1,56 @@
-'use client';
+import Link from 'next/link';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '../lib/supabase/client'; // Ajuste o caminho se necessário
-
-export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [erro, setErro] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  // Forçar o término de sessão ao entrar na página de login para nunca reter sessões antigas
-  useEffect(() => {
-    supabase.auth.signOut();
-  }, []);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setErro('');
-
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      // Login com sucesso, redireciona para o dashboard
-      router.push('/dashboard');
-      router.refresh();
-    } catch (err: any) {
-      setErro('Erro no login: Verifique o seu email e palavra-passe.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+export default function DashboardPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-blue-950 to-gray-900 p-4">
-      <div className="w-full max-w-sm bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-white/20 space-y-6">
-        
-        {/* Cabeçalho com Logo */}
-        <div className="text-center space-y-3">
-          <img src="/logo-clube.png" alt="Logo do Clube de Judo Hajime" className="h-20 w-auto mx-auto object-contain" />
+    <div className="space-y-6">
+      {/* Cabeçalho de Boas-Vindas com o botão Área do Treinador */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center space-x-4">
+          <img src="/logo-clube.png" alt="Logo do Clube de Judo Hajime" className="h-14 w-auto object-contain" />
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-gray-900">CJH Manager</h1>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mt-1">Área Restrita a Treinadores</p>
+            <h1 className="text-2xl font-black text-gray-900">Painel do Treinador</h1>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Gestão da Época 2026/2027</p>
           </div>
         </div>
 
-        {erro && (
-          <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl text-center">
-            {erro}
+        {/* Botão de Área do Treinador que redireciona para o perfil */}
+        <Link
+          href="/dashboard/perfil"
+          className="px-4 py-2.5 bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
+        >
+          🥋 Área do Treinador
+        </Link>
+      </div>
+
+      {/* Grelha de Acessos Rápidos */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Botão de Centros e Turmas */}
+        <Link 
+          href="/dashboard/centros"
+          className="p-6 bg-white hover:bg-blue-50/50 border border-gray-100 rounded-2xl shadow-sm transition-all group flex flex-col justify-between space-y-4"
+        >
+          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 font-bold group-hover:bg-blue-600 group-hover:text-white transition-all">
+            📍
           </div>
-        )}
-
-        {/* Formulário de Autenticação */}
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-1">
-            <label className="block text-xs font-bold text-gray-700 uppercase">Email</label>
-            <input 
-              type="email" 
-              required 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all"
-              placeholder="treinador@cjh.pt"
-            />
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">Centros e Turmas</h2>
+            <p className="text-xs text-gray-500 mt-1">Gerir pavilhões, polos de treino e as respetivas turmas.</p>
           </div>
+        </Link>
 
-          <div className="space-y-1">
-            <label className="block text-xs font-bold text-gray-700 uppercase">Palavra-passe</label>
-            <input 
-              type="password" 
-              required 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all"
-              placeholder="••••••••"
-            />
+        {/* Botão de Eventos e Torneios */}
+        <Link 
+          href="/dashboard/eventos"
+          className="p-6 bg-white hover:bg-blue-50/50 border border-gray-100 rounded-2xl shadow-sm transition-all group flex flex-col justify-between space-y-4"
+        >
+          <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 font-bold group-hover:bg-amber-600 group-hover:text-white transition-all">
+            🏆
           </div>
-
-          <div className="pt-2">
-            <button 
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center py-3.5 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 transition-all text-sm cursor-pointer disabled:opacity-50"
-            >
-              {loading ? 'A entrar...' : 'Entrar no Sistema'}
-            </button>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">Eventos e Torneios</h2>
+            <p className="text-xs text-gray-500 mt-1">Gerir torneios, estágios, presenças de atletas e sistema de pontos.</p>
           </div>
-        </form>
-
-        {/* Rodapé discreto */}
-        <div className="text-center pt-2">
-          <p className="text-[11px] text-gray-400">Clube de Judo Hajime © 2026/2027</p>
-        </div>
-
+        </Link>
       </div>
     </div>
   );
