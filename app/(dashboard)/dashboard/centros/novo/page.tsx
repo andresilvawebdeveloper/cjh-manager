@@ -7,7 +7,7 @@ import { supabase } from '../../../../../lib/supabase/client';
 export default function NovoCentroPage() {
   const router = useRouter();
   const [nome, setNome] = useState('');
-  const [publico, setPublico] = useState(false);
+  const [emailsTreinadores, setEmailsTreinadores] = useState('');
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
 
@@ -19,16 +19,46 @@ export default function NovoCentroPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Utilizador não autenticado.');
+      if (!user.email) throw new Error('Email do utilizador não encontrado.');
 
-      const { error } = await supabase.from('centros').insert([
-        {
-          nome,
-          publico,
-          treinador_id: user.id,
-        }
-      ]);
+      // 1. Inserir o centro na tabela centros
+      const { data: centroData, error: centroError } = await supabase
+        .from('centros')
+        .insert([
+          {
+            nome,
+            treinador_id: user.id, // Mantém o criador original
+          }
+        ])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (centroError) throw centroError;
+      const centroId = centroData.id;
+
+      // 2. Preparar lista de emails com acesso (o próprio criador + outros emails separados por vírgula ou linha)
+      const listaEmails = new Set<string>();
+      listaEmails.add(user.email.trim().toLowerCase());
+
+      if (emailsTreinadores.trim()) {
+        emailsTreinadores
+          .split(/[\n,]/) // Divide por vírgula ou quebra de linha
+          .map(e => e.trim().toLowerCase())
+          .filter(e => e.length > 0)
+          .forEach(e => listaEmails.add(e));
+      }
+
+      // 3. Inserir os registos na tabela de associação 'centro_treinadores'
+      const registosAcesso = Array.from(listaEmails).map(email => ({
+        centro_id: centroId,
+        email: email
+      }));
+
+      const { error: acessoError } = await supabase
+        .from('centro_treinadores')
+        .insert(registosAcesso);
+
+      if (acessoError) throw acessoError;
 
       router.push('/dashboard/centros');
       router.refresh();
@@ -65,17 +95,16 @@ export default function NovoCentroPage() {
           />
         </div>
 
-        <div className="flex items-center space-x-3 p-4 bg-slate-50 rounded-xl border border-gray-200">
-          <input
-            type="checkbox"
-            id="publico"
-            checked={publico}
-            onChange={(e) => setPublico(e.target.checked)}
-            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+        <div>
+          <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Emails dos Treinadores com Acesso (opcional)</label>
+          <textarea
+            value={emailsTreinadores}
+            onChange={(e) => setEmailsTreinadores(e.target.value)}
+            placeholder="Insira os emails separados por vírgula ou linha (ex: treinador1@clube.com, treinador2@clube.com)"
+            rows={3}
+            className="w-full p-3 text-xs border border-gray-300 rounded-xl focus:ring-blue-500 bg-white text-gray-900"
           />
-          <label htmlFor="publico" className="text-xs font-bold text-gray-900 cursor-pointer">
-            Tornar este centro Público (visível para todos os treinadores do clube)
-          </label>
+          <p className="text-[11px] text-gray-500 mt-1">O seu email terá acesso automático. Os restantes treinadores aqui indicados também poderão ver e gerir este centro.</p>
         </div>
 
         <div className="flex justify-end gap-3 pt-2">
