@@ -1,56 +1,95 @@
-import Link from 'next/link';
+'use client';
 
-export default function DashboardPage() {
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '../lib/supabase/client';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState('');
+
+  const lidarComLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErro('');
+
+    try {
+      console.log('A tentar iniciar sessão com:', email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        console.error('Erro retornado pelo Supabase:', error);
+        throw error;
+      }
+
+      console.log('Sessão iniciada com sucesso:', data);
+
+      // Forçar redirecionamento e atualização do router
+      router.push('/dashboard');
+      router.refresh();
+    } catch (err: any) {
+      console.error('Catch erro:', err);
+      setErro(err.message || 'Erro ao iniciar sessão. Verifique o email e a password.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Cabeçalho de Boas-Vindas com o botão Área do Treinador */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center space-x-4">
-          <img src="/logo-clube.png" alt="Logo do Clube de Judo Hajime" className="h-14 w-auto object-contain" />
-          <div>
-            <h1 className="text-2xl font-black text-gray-900">Painel do Treinador</h1>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Gestão da Época 2026/2027</p>
-          </div>
+    <div className="min-h-screen bg-blue-950 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-blue-900/10 space-y-6">
+        <div className="text-center space-y-2">
+          <img src="/logo-clube.png" alt="Logo" className="h-16 w-auto mx-auto object-contain" />
+          <h1 className="text-xl font-black text-gray-900">Painel do Treinador</h1>
+          <p className="text-xs text-gray-400">Introduza as suas credenciais para aceder</p>
         </div>
 
-        {/* Botão de Área do Treinador que redireciona para o perfil */}
-        <Link
-          href="/dashboard/perfil"
-          className="px-4 py-2.5 bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
-        >
-          🥋 Área do Treinador
-        </Link>
-      </div>
+        {erro && (
+          <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl whitespace-pre-wrap">
+            {erro}
+          </div>
+        )}
 
-      {/* Grelha de Acessos Rápidos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Botão de Centros e Turmas */}
-        <Link 
-          href="/dashboard/centros"
-          className="p-6 bg-white hover:bg-blue-50/50 border border-gray-100 rounded-2xl shadow-sm transition-all group flex flex-col justify-between space-y-4"
-        >
-          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 font-bold group-hover:bg-blue-600 group-hover:text-white transition-all">
-            📍
-          </div>
+        <form onSubmit={lidarComLogin} className="space-y-4">
           <div>
-            <h2 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">Centros e Turmas</h2>
-            <p className="text-xs text-gray-500 mt-1">Gerir pavilhões, polos de treino e as respetivas turmas.</p>
+            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Email</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="treinador@exemplo.com"
+              className="w-full p-3 text-xs border border-gray-300 rounded-xl focus:ring-blue-900 focus:border-blue-900 bg-white text-gray-900"
+            />
           </div>
-        </Link>
 
-        {/* Botão de Eventos e Torneios */}
-        <Link 
-          href="/dashboard/eventos"
-          className="p-6 bg-white hover:bg-blue-50/50 border border-gray-100 rounded-2xl shadow-sm transition-all group flex flex-col justify-between space-y-4"
-        >
-          <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 font-bold group-hover:bg-amber-600 group-hover:text-white transition-all">
-            🏆
-          </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">Eventos e Torneios</h2>
-            <p className="text-xs text-gray-500 mt-1">Gerir torneios, estágios, presenças de atletas e sistema de pontos.</p>
+            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Password</label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full p-3 text-xs border border-gray-300 rounded-xl focus:ring-blue-900 focus:border-blue-900 bg-white text-gray-900"
+            />
           </div>
-        </Link>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-blue-950 hover:bg-blue-900 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
+          >
+            {loading ? 'A entrar...' : 'Iniciar Sessão'}
+          </button>
+        </form>
       </div>
     </div>
   );
