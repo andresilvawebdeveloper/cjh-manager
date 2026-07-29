@@ -15,7 +15,7 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({
             request,
           });
@@ -27,21 +27,24 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // Obter o utilizador autenticado através dos cookies de sessão
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
+  const path = request.nextUrl.pathname;
+
+  // Se o utilizador NÃO estiver autenticado e tentar aceder a qualquer caminho dentro de /dashboard
+  if (path.startsWith('/dashboard') && !user) {
     const url = request.nextUrl.clone();
-    url.pathname = '/login';
+    url.pathname = '/login'; // Redireciona obrigatoriamente para o login
     return NextResponse.redirect(url);
   }
 
   return supabaseResponse;
 }
 
+// Configurar o matcher para intercetar todas as rotas de dashboard
 export const config = {
-  matcher: [
-    '/dashboard/:path*',
-  ],
+  matcher: ['/dashboard/:path*'],
 };
