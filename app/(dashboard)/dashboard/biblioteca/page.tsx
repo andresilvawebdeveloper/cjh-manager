@@ -21,6 +21,12 @@ const SUBCATEGORIAS_NAGE_WAZA = [
   'Yoko-Sutemi-Waza'
 ];
 
+const SUBCATEGORIAS_NE_WAZA = [
+  'Osaekomi-Waza',
+  'Shime-Waza',
+  'Kansetsu-Waza'
+];
+
 export default function BibliotecaPage() {
   const [videos, setVideos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +40,9 @@ export default function BibliotecaPage() {
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState('');
   const [montado, setMontado] = useState(false);
+  
+  // Controla qual vídeo está ativo a ser reproduzido para poupar memória no telemóvel
+  const [videoAtivoId, setVideoAtivoId] = useState<number | null>(null);
 
   useEffect(() => {
     setMontado(true);
@@ -63,13 +72,18 @@ export default function BibliotecaPage() {
     setErro('');
 
     try {
+      let subcatParaGuardar = null;
+      if (categoria === 'Kodokan Nage–Waza' || categoria === 'Kodokan Ne-Waza') {
+        subcatParaGuardar = subcategoria;
+      }
+
       const { error } = await supabase.from('biblioteca_videos').insert([
         {
           titulo,
           url,
           tipo,
           categoria,
-          subcategoria: categoria === 'Kodokan Nage–Waza' ? subcategoria : null,
+          subcategoria: subcatParaGuardar,
         }
       ]);
 
@@ -87,23 +101,23 @@ export default function BibliotecaPage() {
     }
   };
 
-  const formatarEmbedYouTube = (link: string) => {
+  const extrairVideoIdYouTube = (link: string) => {
     try {
-      if (link.includes('embed/')) return link;
       const urlObj = new URL(link);
       let videoId = urlObj.searchParams.get('v');
       if (!videoId && urlObj.hostname.includes('youtu.be')) {
         videoId = urlObj.pathname.slice(1);
       }
-      return videoId ? `https://www.youtube.com/embed/${videoId}` : link;
+      return videoId;
     } catch {
-      return link;
+      return null;
     }
   };
 
   const videosFiltrados = videos.filter(v => {
     if (filtroCategoria !== 'TODAS' && v.categoria !== filtroCategoria) return false;
     if (filtroCategoria === 'Kodokan Nage–Waza' && filtroSubcategoria !== 'TODAS' && v.subcategoria !== filtroSubcategoria) return false;
+    if (filtroCategoria === 'Kodokan Ne-Waza' && filtroSubcategoria !== 'TODAS' && v.subcategoria !== filtroSubcategoria) return false;
     return true;
   });
 
@@ -146,8 +160,11 @@ export default function BibliotecaPage() {
               <select
                 value={categoria}
                 onChange={(e) => {
-                  setCategoria(e.target.value);
-                  if (e.target.value !== 'Kodokan Nage–Waza') setSubcategoria('');
+                  const novaCat = e.target.value;
+                  setCategoria(novaCat);
+                  if (novaCat === 'Kodokan Nage–Waza') setSubcategoria('Te-Waza');
+                  else if (novaCat === 'Kodokan Ne-Waza') setSubcategoria('Osaekomi-Waza');
+                  else setSubcategoria('');
                 }}
                 className="w-full p-3 text-xs border border-gray-300 rounded-xl bg-white text-gray-900 font-medium"
               >
@@ -166,6 +183,21 @@ export default function BibliotecaPage() {
                   className="w-full p-3 text-xs border border-gray-300 rounded-xl bg-white text-gray-900 font-medium"
                 >
                   {SUBCATEGORIAS_NAGE_WAZA.map(sub => (
+                    <option key={sub} value={sub}>{sub}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {categoria === 'Kodokan Ne-Waza' && (
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Subcategoria (Ne-Waza)</label>
+                <select
+                  value={subcategoria}
+                  onChange={(e) => setSubcategoria(e.target.value)}
+                  className="w-full p-3 text-xs border border-gray-300 rounded-xl bg-white text-gray-900 font-medium"
+                >
+                  {SUBCATEGORIAS_NE_WAZA.map(sub => (
                     <option key={sub} value={sub}>{sub}</option>
                   ))}
                 </select>
@@ -237,7 +269,7 @@ export default function BibliotecaPage() {
           })}
         </div>
 
-        {/* Filtros por Subcategoria (caso escolha Kodokan Nage-Waza) */}
+        {/* Filtros por Subcategoria (Nage-Waza) */}
         {filtroCategoria === 'Kodokan Nage–Waza' && (
           <div className="flex flex-wrap items-center gap-2 pl-4 pt-2 border-l-2 border-blue-200">
             <span className="text-xs font-bold text-blue-800 uppercase mr-2">Subcategoria:</span>
@@ -265,9 +297,38 @@ export default function BibliotecaPage() {
             })}
           </div>
         )}
+
+        {/* Filtros por Subcategoria (Ne-Waza) */}
+        {filtroCategoria === 'Kodokan Ne-Waza' && (
+          <div className="flex flex-wrap items-center gap-2 pl-4 pt-2 border-l-2 border-blue-200">
+            <span className="text-xs font-bold text-blue-800 uppercase mr-2">Subcategoria:</span>
+            <button
+              onClick={() => setFiltroSubcategoria('TODAS')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                filtroSubcategoria === 'TODAS' ? 'bg-blue-800 text-white' : 'bg-white text-blue-900 border border-blue-200 hover:bg-blue-50'
+              }`}
+            >
+              Todas as Subcategorias
+            </button>
+            {SUBCATEGORIAS_NE_WAZA.map(sub => {
+              const count = videos.filter(v => v.categoria === 'Kodokan Ne-Waza' && v.subcategoria === sub).length;
+              return (
+                <button
+                  key={sub}
+                  onClick={() => setFiltroSubcategoria(sub)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                    filtroSubcategoria === sub ? 'bg-blue-800 text-white' : 'bg-white text-blue-900 border border-blue-200 hover:bg-blue-50'
+                  }`}
+                >
+                  {sub} ({count})
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Listagem de Vídeos */}
+      {/* Listagem Otimizada */}
       {loading ? (
         <div className="text-center py-12 text-xs text-gray-500 font-medium">A carregar biblioteca...</div>
       ) : videosFiltrados.length === 0 ? (
@@ -276,53 +337,73 @@ export default function BibliotecaPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {videosFiltrados.map((item) => (
-            <div key={item.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full uppercase tracking-wider border border-blue-100">
-                      {item.categoria}
-                    </span>
-                    {item.subcategoria && (
-                      <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-wider border border-indigo-100">
-                        {item.subcategoria}
+          {videosFiltrados.map((item) => {
+            const videoId = item.tipo === 'youtube' ? extrairVideoIdYouTube(item.url) : null;
+            const estaAtivo = videoAtivoId === item.id;
+
+            return (
+              <div key={item.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full uppercase tracking-wider border border-blue-100">
+                        {item.categoria}
                       </span>
+                      {item.subcategoria && (
+                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-wider border border-indigo-100">
+                          {item.subcategoria}
+                        </span>
+                      )}
+                    </div>
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider border ${
+                      item.tipo === 'youtube' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-amber-50 text-amber-700 border-amber-100'
+                    }`}>
+                      {item.tipo === 'youtube' ? 'YouTube' : 'Google Drive'}
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-black text-gray-900 mt-2">{item.titulo}</h3>
+                </div>
+
+                {item.tipo === 'youtube' ? (
+                  <div className="aspect-video w-full rounded-xl overflow-hidden bg-slate-900 border border-gray-200 relative flex items-center justify-center">
+                    {estaAtivo && videoId ? (
+                      <iframe
+                        src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+                        title={item.titulo}
+                        className="w-full h-full absolute inset-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <div 
+                        onClick={() => setVideoAtivoId(item.id)}
+                        className="absolute inset-0 cursor-pointer flex flex-col items-center justify-center bg-cover bg-center group transition-all"
+                        style={{ backgroundImage: videoId ? `url(https://img.youtube.com/vi/${videoId}/hqdefault.jpg)` : undefined }}
+                      >
+                        <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all" />
+                        <div className="w-12 h-12 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shadow-lg z-10 transition-transform group-hover:scale-110">
+                          ▶
+                        </div>
+                        <span className="text-white text-xs font-bold mt-2 z-10 drop-shadow">▶ Reproduzir Vídeo</span>
+                      </div>
                     )}
                   </div>
-                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider border ${
-                    item.tipo === 'youtube' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-amber-50 text-amber-700 border-amber-100'
-                  }`}>
-                    {item.tipo === 'youtube' ? 'YouTube' : 'Google Drive'}
-                  </span>
-                </div>
-                <h3 className="text-sm font-black text-gray-900 mt-2">{item.titulo}</h3>
+                ) : (
+                  <div className="p-4 bg-slate-50 rounded-xl border border-gray-200 flex flex-col items-center justify-center space-y-3 text-center">
+                    <p className="text-xs text-gray-600 font-medium">Pasta ou Ficheiro partilhado via Google Drive</p>
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow transition-all"
+                    >
+                      📂 Abrir Pasta no Google Drive ↗
+                    </a>
+                  </div>
+                )}
               </div>
-
-              {item.tipo === 'youtube' ? (
-                <div className="aspect-video w-full rounded-xl overflow-hidden bg-slate-100 border border-gray-200">
-                  <iframe
-                    src={formatarEmbedYouTube(item.url)}
-                    title={item.titulo}
-                    className="w-full h-full"
-                    allowFullScreen
-                  />
-                </div>
-              ) : (
-                <div className="p-4 bg-slate-50 rounded-xl border border-gray-200 flex flex-col items-center justify-center space-y-3 text-center">
-                  <p className="text-xs text-gray-600 font-medium">Pasta ou Ficheiro partilhado via Google Drive</p>
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow transition-all"
-                  >
-                    📂 Abrir Pasta no Google Drive ↗
-                  </a>
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
