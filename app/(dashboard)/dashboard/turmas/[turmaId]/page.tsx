@@ -6,6 +6,21 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../../../../../lib/supabase/client';
 import { exportarMapaPresencasExcel } from './exportarExcel';
 
+const LISTA_GRADUACOES = [
+  'Branco',
+  'Branco/Amarelo',
+  'Amarelo',
+  'Amarelo/Laranja',
+  'Laranja',
+  'Laranja/Verde',
+  'Verde',
+  'Verde/Azul',
+  'Azul',
+  'Azul/Castanho',
+  'Castanho',
+  'Preto'
+];
+
 export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId: string }> }) {
   const resolvedParams = use(params);
   const turmaId = resolvedParams.turmaId;
@@ -142,6 +157,22 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
     }));
   };
 
+  const alterarGraduacaoAtleta = async (alunoId: number, novaGraduacao: string) => {
+    try {
+      const { error } = await supabase
+        .from('alunos')
+        .update({ graduacao: novaGraduacao })
+        .eq('id', alunoId);
+
+      if (error) throw error;
+
+      // Atualizar estado local para feedback imediato
+      setAlunos(prev => prev.map(a => a.id === alunoId ? { ...a, graduacao: novaGraduacao } : a));
+    } catch (err: any) {
+      alert('Erro ao atualizar graduação: ' + err.message);
+    }
+  };
+
   const guardarPresencas = async () => {
     if (alunos.length === 0) return;
     setSavingPresencas(true);
@@ -199,7 +230,6 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
 
       if (error) throw error;
 
-      // Limpar estado local
       const mapaVazio: { [key: number]: null } = {};
       alunos.forEach(a => { mapaVazio[a.id] = null; });
       setPresencas(mapaVazio);
@@ -243,6 +273,23 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
       setErro('Erro ao adicionar atleta: ' + (err.message || JSON.stringify(err)));
     } finally {
       setSavingAluno(false);
+    }
+  };
+
+  const removerAtleta = async (alunoId: number, nomeAtleta: string) => {
+    if (!confirm(`Tem a certeza de que deseja remover o atleta "${nomeAtleta}"? Esta ação removerá também o seu histórico de presenças.`)) {
+      return;
+    }
+
+    try {
+      await supabase.from('presencas').delete().eq('aluno_id', alunoId);
+
+      const { error } = await supabase.from('alunos').delete().eq('id', alunoId);
+      if (error) throw error;
+
+      carregarDados();
+    } catch (err: any) {
+      alert('Erro ao remover atleta: ' + err.message);
     }
   };
 
@@ -333,15 +380,11 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
                 <select
                   value={graduacao}
                   onChange={(e) => setGraduacao(e.target.value)}
-                  className="w-full p-3 text-xs border border-gray-300 rounded-xl focus:ring-blue-900 bg-white text-gray-900"
+                  className="w-full p-3 text-xs border border-gray-300 rounded-xl focus:ring-blue-900 bg-white text-gray-900 font-medium"
                 >
-                  <option value="Branco">Branco</option>
-                  <option value="Amarelo">Amarelo</option>
-                  <option value="Laranja">Laranja</option>
-                  <option value="Verde">Verde</option>
-                  <option value="Azul">Azul</option>
-                  <option value="Castanho">Castanho</option>
-                  <option value="Preto">Preto</option>
+                  {LISTA_GRADUACOES.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -416,6 +459,7 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
                   <th className="p-4">Escalão</th>
                   <th className="p-4">Graduação</th>
                   <th className="p-4 text-center">Estado (Presente / Faltou / -)</th>
+                  <th className="p-4 text-center">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-xs">
@@ -431,9 +475,15 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
                         </span>
                       </td>
                       <td className="p-4 text-gray-600">
-                        <span className="px-2 py-1 bg-slate-100 text-slate-800 font-bold rounded-lg border border-slate-200">
-                          {aluno.graduacao || 'Branco'}
-                        </span>
+                        <select
+                          value={aluno.graduacao || 'Branco'}
+                          onChange={(e) => alterarGraduacaoAtleta(aluno.id, e.target.value)}
+                          className="p-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 font-bold shadow-sm focus:ring-blue-900 cursor-pointer"
+                        >
+                          {LISTA_GRADUACOES.map((g) => (
+                            <option key={g} value={g}>{g}</option>
+                          ))}
+                        </select>
                       </td>
                       <td className="p-4 text-center">
                         <div className="inline-flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200">
@@ -473,6 +523,16 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
                             -
                           </button>
                         </div>
+                      </td>
+                      <td className="p-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => removerAtleta(aluno.id, aluno.nome)}
+                          title="Remover Atleta"
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                        >
+                          🗑️
+                        </button>
                       </td>
                     </tr>
                   );

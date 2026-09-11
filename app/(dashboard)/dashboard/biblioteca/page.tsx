@@ -7,10 +7,7 @@ import { supabase } from '../../../../lib/supabase/client';
 const CATEGORIAS_JUDO = [
   'Kodokan Nage–Waza',
   'Kodokan Ne-Waza',
-  'Nage–Waza',
-  'Osaekomi–Waza',
-  'Renraku–Waza',
-  'Shime–Waza'
+  'Planeamento'
 ];
 
 const SUBCATEGORIAS_NAGE_WAZA = [
@@ -37,6 +34,7 @@ export default function BibliotecaPage() {
   const [subcategoria, setSubcategoria] = useState('Te-Waza');
   const [filtroCategoria, setFiltroCategoria] = useState('TODAS');
   const [filtroSubcategoria, setFiltroSubcategoria] = useState('TODAS');
+  const [termoPesquisa, setTermoPesquisa] = useState('');
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState('');
   const [montado, setMontado] = useState(false);
@@ -118,6 +116,12 @@ export default function BibliotecaPage() {
     if (filtroCategoria !== 'TODAS' && v.categoria !== filtroCategoria) return false;
     if (filtroCategoria === 'Kodokan Nage–Waza' && filtroSubcategoria !== 'TODAS' && v.subcategoria !== filtroSubcategoria) return false;
     if (filtroCategoria === 'Kodokan Ne-Waza' && filtroSubcategoria !== 'TODAS' && v.subcategoria !== filtroSubcategoria) return false;
+    
+    if (termoPesquisa.trim() !== '') {
+      const matchTitulo = v.titulo?.toLowerCase().includes(termoPesquisa.toLowerCase());
+      if (!matchTitulo) return false;
+    }
+
     return true;
   });
 
@@ -241,91 +245,107 @@ export default function BibliotecaPage() {
         </form>
       </div>
 
-      {/* Filtros por Categoria Principal */}
-      <div className="space-y-2 pt-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-gray-500 uppercase mr-2">Categoria:</span>
-          <button
-            onClick={() => { setFiltroCategoria('TODAS'); setFiltroSubcategoria('TODAS'); }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              filtroCategoria === 'TODAS' ? 'bg-blue-950 text-white shadow' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            Todas ({videos.length})
-          </button>
-          {CATEGORIAS_JUDO.map(cat => {
-            const count = videos.filter(v => v.categoria === cat).length;
-            return (
-              <button
-                key={cat}
-                onClick={() => { setFiltroCategoria(cat); setFiltroSubcategoria('TODAS'); }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  filtroCategoria === cat ? 'bg-blue-950 text-white shadow' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                {cat} ({count})
-              </button>
-            );
-          })}
+      {/* Barra de Pesquisa por Nome e Filtros */}
+      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+        <div className="relative">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
+            🔍
+          </span>
+          <input
+            type="text"
+            value={termoPesquisa}
+            onChange={(e) => setTermoPesquisa(e.target.value)}
+            placeholder="Pesquisar vídeo por nome..."
+            className="w-full pl-10 pr-4 py-3 text-xs border border-gray-300 rounded-xl bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-950"
+          />
         </div>
 
-        {/* Filtros por Subcategoria (Nage-Waza) */}
-        {filtroCategoria === 'Kodokan Nage–Waza' && (
-          <div className="flex flex-wrap items-center gap-2 pl-4 pt-2 border-l-2 border-blue-200">
-            <span className="text-xs font-bold text-blue-800 uppercase mr-2">Subcategoria:</span>
+        {/* Filtros por Categoria Principal */}
+        <div className="space-y-2 pt-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-gray-500 uppercase mr-2">Categoria:</span>
             <button
-              onClick={() => setFiltroSubcategoria('TODAS')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                filtroSubcategoria === 'TODAS' ? 'bg-blue-800 text-white' : 'bg-white text-blue-900 border border-blue-200 hover:bg-blue-50'
+              onClick={() => { setFiltroCategoria('TODAS'); setFiltroSubcategoria('TODAS'); }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                filtroCategoria === 'TODAS' ? 'bg-blue-950 text-white shadow' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
               }`}
             >
-              Todas as Subcategorias
+              Todas ({videos.length})
             </button>
-            {SUBCATEGORIAS_NAGE_WAZA.map(sub => {
-              const count = videos.filter(v => v.categoria === 'Kodokan Nage–Waza' && v.subcategoria === sub).length;
+            {CATEGORIAS_JUDO.map(cat => {
+              const count = videos.filter(v => v.categoria === cat).length;
               return (
                 <button
-                  key={sub}
-                  onClick={() => setFiltroSubcategoria(sub)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                    filtroSubcategoria === sub ? 'bg-blue-800 text-white' : 'bg-white text-blue-900 border border-blue-200 hover:bg-blue-50'
+                  key={cat}
+                  onClick={() => { setFiltroCategoria(cat); setFiltroSubcategoria('TODAS'); }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    filtroCategoria === cat ? 'bg-blue-950 text-white shadow' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                   }`}
                 >
-                  {sub} ({count})
+                  {cat} ({count})
                 </button>
               );
             })}
           </div>
-        )}
 
-        {/* Filtros por Subcategoria (Ne-Waza) */}
-        {filtroCategoria === 'Kodokan Ne-Waza' && (
-          <div className="flex flex-wrap items-center gap-2 pl-4 pt-2 border-l-2 border-blue-200">
-            <span className="text-xs font-bold text-blue-800 uppercase mr-2">Subcategoria:</span>
-            <button
-              onClick={() => setFiltroSubcategoria('TODAS')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                filtroSubcategoria === 'TODAS' ? 'bg-blue-800 text-white' : 'bg-white text-blue-900 border border-blue-200 hover:bg-blue-50'
-              }`}
-            >
-              Todas as Subcategorias
-            </button>
-            {SUBCATEGORIAS_NE_WAZA.map(sub => {
-              const count = videos.filter(v => v.categoria === 'Kodokan Ne-Waza' && v.subcategoria === sub).length;
-              return (
-                <button
-                  key={sub}
-                  onClick={() => setFiltroSubcategoria(sub)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                    filtroSubcategoria === sub ? 'bg-blue-800 text-white' : 'bg-white text-blue-900 border border-blue-200 hover:bg-blue-50'
-                  }`}
-                >
-                  {sub} ({count})
-                </button>
-              );
-            })}
-          </div>
-        )}
+          {/* Filtros por Subcategoria (Nage-Waza) */}
+          {filtroCategoria === 'Kodokan Nage–Waza' && (
+            <div className="flex flex-wrap items-center gap-2 pl-4 pt-2 border-l-2 border-blue-200">
+              <span className="text-xs font-bold text-blue-800 uppercase mr-2">Subcategoria:</span>
+              <button
+                onClick={() => setFiltroSubcategoria('TODAS')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  filtroSubcategoria === 'TODAS' ? 'bg-blue-800 text-white' : 'bg-white text-blue-900 border border-blue-200 hover:bg-blue-50'
+                }`}
+              >
+                Todas as Subcategorias
+              </button>
+              {SUBCATEGORIAS_NAGE_WAZA.map(sub => {
+                const count = videos.filter(v => v.categoria === 'Kodokan Nage–Waza' && v.subcategoria === sub).length;
+                return (
+                  <button
+                    key={sub}
+                    onClick={() => setFiltroSubcategoria(sub)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      filtroSubcategoria === sub ? 'bg-blue-800 text-white' : 'bg-white text-blue-900 border border-blue-200 hover:bg-blue-50'
+                    }`}
+                  >
+                    {sub} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Filtros por Subcategoria (Ne-Waza) */}
+          {filtroCategoria === 'Kodokan Ne-Waza' && (
+            <div className="flex flex-wrap items-center gap-2 pl-4 pt-2 border-l-2 border-blue-200">
+              <span className="text-xs font-bold text-blue-800 uppercase mr-2">Subcategoria:</span>
+              <button
+                onClick={() => setFiltroSubcategoria('TODAS')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  filtroSubcategoria === 'TODAS' ? 'bg-blue-800 text-white' : 'bg-white text-blue-900 border border-blue-200 hover:bg-blue-50'
+                }`}
+              >
+                Todas as Subcategorias
+              </button>
+              {SUBCATEGORIAS_NE_WAZA.map(sub => {
+                const count = videos.filter(v => v.categoria === 'Kodokan Ne-Waza' && v.subcategoria === sub).length;
+                return (
+                  <button
+                    key={sub}
+                    onClick={() => setFiltroSubcategoria(sub)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      filtroSubcategoria === sub ? 'bg-blue-800 text-white' : 'bg-white text-blue-900 border border-blue-200 hover:bg-blue-50'
+                    }`}
+                  >
+                    {sub} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Listagem Otimizada */}
