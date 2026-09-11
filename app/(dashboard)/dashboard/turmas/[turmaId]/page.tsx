@@ -166,10 +166,24 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
 
       if (error) throw error;
 
-      // Atualizar estado local para feedback imediato
       setAlunos(prev => prev.map(a => a.id === alunoId ? { ...a, graduacao: novaGraduacao } : a));
     } catch (err: any) {
       alert('Erro ao atualizar graduação: ' + err.message);
+    }
+  };
+
+  const alterarDataNascimentoAtleta = async (alunoId: number, novaData: string) => {
+    try {
+      const { error } = await supabase
+        .from('alunos')
+        .update({ data_nascimento: novaData || null })
+        .eq('id', alunoId);
+
+      if (error) throw error;
+
+      setAlunos(prev => prev.map(a => a.id === alunoId ? { ...a, data_nascimento: novaData } : a));
+    } catch (err: any) {
+      alert('Erro ao atualizar data de nascimento: ' + err.message);
     }
   };
 
@@ -468,7 +482,14 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
                   return (
                     <tr key={aluno.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="p-4 font-bold text-gray-900">{aluno.nome}</td>
-                      <td className="p-4 text-gray-600">{aluno.data_nascimento || 'Não definida'}</td>
+                      <td className="p-4 text-gray-600">
+                        <input
+                          type="date"
+                          value={aluno.data_nascimento || ''}
+                          onChange={(e) => alterarDataNascimentoAtleta(aluno.id, e.target.value)}
+                          className="p-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 font-medium shadow-sm focus:ring-blue-950 cursor-pointer"
+                        />
+                      </td>
                       <td className="p-4 text-gray-600">
                         <span className="px-2 py-1 bg-blue-50 text-blue-700 font-bold rounded-lg border border-blue-100">
                           {aluno.escalao || 'Geral'}
@@ -478,7 +499,7 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
                         <select
                           value={aluno.graduacao || 'Branco'}
                           onChange={(e) => alterarGraduacaoAtleta(aluno.id, e.target.value)}
-                          className="p-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 font-bold shadow-sm focus:ring-blue-900 cursor-pointer"
+                          className="p-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 font-bold shadow-sm focus:ring-blue-950 cursor-pointer"
                         >
                           {LISTA_GRADUACOES.map((g) => (
                             <option key={g} value={g}>{g}</option>
