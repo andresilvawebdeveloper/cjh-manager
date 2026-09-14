@@ -21,6 +21,21 @@ const LISTA_GRADUACOES = [
   'Preto'
 ];
 
+const MESES = [
+  { id: 1, nome: 'Janeiro' },
+  { id: 2, nome: 'Fevereiro' },
+  { id: 3, nome: 'Março' },
+  { id: 4, nome: 'Abril' },
+  { id: 5, nome: 'Maio' },
+  { id: 6, nome: 'Junho' },
+  { id: 7, nome: 'Julho' },
+  { id: 8, nome: 'Agosto' },
+  { id: 9, nome: 'Setembro' },
+  { id: 10, nome: 'Outubro' },
+  { id: 11, nome: 'Novembro' },
+  { id: 12, nome: 'Dezembro' }
+];
+
 export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId: string }> }) {
   const resolvedParams = use(params);
   const turmaId = resolvedParams.turmaId;
@@ -30,6 +45,9 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
   const [alunos, setAlunos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
+
+  // Aba ativa: 'presencas' ou 'aniversarios'
+  const [abaAtiva, setAbaAtiva] = useState<'presencas' | 'aniversarios'>('presencas');
 
   // Estados para adicionar aluno
   const [nomeAluno, setNomeAluno] = useState('');
@@ -423,192 +441,281 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
         </div>
       )}
 
-      {/* Registo de Presenças Diário */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden space-y-4">
-        <div className="p-4 border-b border-gray-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Registar Presenças ({alunos.length} Atletas)</h2>
-          
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-600">Data:</span>
-              <input
-                type="date"
-                value={dataPresenca}
-                onChange={(e) => mudarDataPresenca(e.target.value)}
-                className="p-2 text-xs border border-gray-300 rounded-xl bg-white text-gray-900 font-medium"
-              />
+      {/* Sistema de Abas (Gestão de Presenças vs Aniversários) */}
+      <div className="flex items-center gap-2 border-b border-gray-200 pb-3">
+        <button
+          onClick={() => setAbaAtiva('presencas')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            abaAtiva === 'presencas'
+              ? 'bg-blue-950 text-white shadow'
+              : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+          }`}
+        >
+          📋 Gestão de Atletas e Presenças
+        </button>
+        <button
+          onClick={() => setAbaAtiva('aniversarios')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            abaAtiva === 'aniversarios'
+              ? 'bg-blue-950 text-white shadow'
+              : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+          }`}
+        >
+          🎉 Aniversários
+        </button>
+      </div>
+
+      {/* Conteúdo da Aba: Presenças */}
+      {abaAtiva === 'presencas' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden space-y-4">
+            <div className="p-4 border-b border-gray-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4">
+              <h2 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Registar Presenças ({alunos.length} Atletas)</h2>
+              
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-600">Data:</span>
+                  <input
+                    type="date"
+                    value={dataPresenca}
+                    onChange={(e) => mudarDataPresenca(e.target.value)}
+                    className="p-2 text-xs border border-gray-300 rounded-xl bg-white text-gray-900 font-medium"
+                  />
+                </div>
+                <button
+                  onClick={guardarPresencas}
+                  disabled={savingPresencas || alunos.length === 0}
+                  className="px-4 py-2 bg-blue-950 hover:bg-blue-900 text-white font-bold rounded-xl text-xs shadow transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {savingPresencas ? 'A guardar...' : '💾 Guardar Presenças'}
+                </button>
+                <button
+                  onClick={removerPresencasData}
+                  disabled={savingPresencas || alunos.length === 0}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs shadow transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  🗑️ Remover Presenças (Data)
+                </button>
+              </div>
             </div>
-            <button
-              onClick={guardarPresencas}
-              disabled={savingPresencas || alunos.length === 0}
-              className="px-4 py-2 bg-blue-950 hover:bg-blue-900 text-white font-bold rounded-xl text-xs shadow transition-all cursor-pointer disabled:opacity-50"
-            >
-              {savingPresencas ? 'A guardar...' : '💾 Guardar Presenças'}
-            </button>
-            <button
-              onClick={removerPresencasData}
-              disabled={savingPresencas || alunos.length === 0}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs shadow transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-            >
-              🗑️ Remover Presenças (Data)
-            </button>
-          </div>
-        </div>
 
-        {sucessoPresencas && (
-          <div className="mx-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl">
-            {sucessoPresencas}
-          </div>
-        )}
+            {sucessoPresencas && (
+              <div className="mx-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl">
+                {sucessoPresencas}
+              </div>
+            )}
 
-        {alunos.length === 0 ? (
-          <div className="p-8 text-center text-xs text-gray-500">Ainda não existem atletas registados nesta turma.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
-                  <th className="p-4">Nome do Atleta</th>
-                  <th className="p-4">Data de Nascimento</th>
-                  <th className="p-4">Escalão</th>
-                  <th className="p-4">Graduação</th>
-                  <th className="p-4 text-center">Estado (Presente / Faltou / -)</th>
-                  <th className="p-4 text-center">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-xs">
-                {alunos.map((aluno) => {
-                  const estadoAtual = presencas[aluno.id];
-                  return (
-                    <tr key={aluno.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="p-4 font-bold text-gray-900">{aluno.nome}</td>
-                      <td className="p-4 text-gray-600">
-                        <input
-                          type="date"
-                          value={aluno.data_nascimento || ''}
-                          onChange={(e) => alterarDataNascimentoAtleta(aluno.id, e.target.value)}
-                          className="p-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 font-medium shadow-sm focus:ring-blue-950 cursor-pointer"
-                        />
-                      </td>
-                      <td className="p-4 text-gray-600">
-                        <span className="px-2 py-1 bg-blue-50 text-blue-700 font-bold rounded-lg border border-blue-100">
-                          {aluno.escalao || 'Geral'}
-                        </span>
-                      </td>
-                      <td className="p-4 text-gray-600">
-                        <select
-                          value={aluno.graduacao || 'Branco'}
-                          onChange={(e) => alterarGraduacaoAtleta(aluno.id, e.target.value)}
-                          className="p-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 font-bold shadow-sm focus:ring-blue-950 cursor-pointer"
-                        >
-                          {LISTA_GRADUACOES.map((g) => (
-                            <option key={g} value={g}>{g}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="p-4 text-center">
-                        <div className="inline-flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200">
-                          <button
-                            type="button"
-                            onClick={() => definirEstadoPresenca(aluno.id, true)}
-                            className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
-                              estadoAtual === true
-                                ? 'bg-emerald-600 text-white shadow-sm'
-                                : 'text-emerald-700 hover:bg-emerald-50'
-                            }`}
-                          >
-                            Presente
-                          </button>
-                          
-                          <button
-                            type="button"
-                            onClick={() => definirEstadoPresenca(aluno.id, false)}
-                            className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
-                              estadoAtual === false
-                                ? 'bg-red-600 text-white shadow-sm'
-                                : 'text-red-700 hover:bg-red-50'
-                            }`}
-                          >
-                            Faltou
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => definirEstadoPresenca(aluno.id, null)}
-                            className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
-                              estadoAtual === null || estadoAtual === undefined
-                                ? 'bg-gray-700 text-white shadow-sm'
-                                : 'text-gray-600 hover:bg-gray-200'
-                            }`}
-                          >
-                            -
-                          </button>
-                        </div>
-                      </td>
-                      <td className="p-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => removerAtleta(aluno.id, aluno.nome)}
-                          title="Remover Atleta"
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
-                        >
-                          🗑️
-                        </button>
-                      </td>
+            {alunos.length === 0 ? (
+              <div className="p-8 text-center text-xs text-gray-500">Ainda não existem atletas registados nesta turma.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                      <th className="p-4">Nome do Atleta</th>
+                      <th className="p-4">Data de Nascimento</th>
+                      <th className="p-4">Escalão</th>
+                      <th className="p-4">Graduação</th>
+                      <th className="p-4 text-center">Estado (Presente / Faltou / -)</th>
+                      <th className="p-4 text-center">Ações</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-xs">
+                    {alunos.map((aluno) => {
+                      const estadoAtual = presencas[aluno.id];
+                      return (
+                        <tr key={aluno.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 font-bold text-gray-900">{aluno.nome}</td>
+                          <td className="p-4 text-gray-600">
+                            <input
+                              type="date"
+                              value={aluno.data_nascimento || ''}
+                              onChange={(e) => alterarDataNascimentoAtleta(aluno.id, e.target.value)}
+                              className="p-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 font-medium shadow-sm focus:ring-blue-950 cursor-pointer"
+                            />
+                          </td>
+                          <td className="p-4 text-gray-600">
+                            <span className="px-2 py-1 bg-blue-50 text-blue-700 font-bold rounded-lg border border-blue-100">
+                              {aluno.escalao || 'Geral'}
+                            </span>
+                          </td>
+                          <td className="p-4 text-gray-600">
+                            <select
+                              value={aluno.graduacao || 'Branco'}
+                              onChange={(e) => alterarGraduacaoAtleta(aluno.id, e.target.value)}
+                              className="p-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 font-bold shadow-sm focus:ring-blue-950 cursor-pointer"
+                            >
+                              {LISTA_GRADUACOES.map((g) => (
+                                <option key={g} value={g}>{g}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="p-4 text-center">
+                            <div className="inline-flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200">
+                              <button
+                                type="button"
+                                onClick={() => definirEstadoPresenca(aluno.id, true)}
+                                className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
+                                  estadoAtual === true
+                                    ? 'bg-emerald-600 text-white shadow-sm'
+                                    : 'text-emerald-700 hover:bg-emerald-50'
+                                }`}
+                              >
+                                Presente
+                              </button>
+                              
+                              <button
+                                type="button"
+                                onClick={() => definirEstadoPresenca(aluno.id, false)}
+                                className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
+                                  estadoAtual === false
+                                    ? 'bg-red-600 text-white shadow-sm'
+                                    : 'text-red-700 hover:bg-red-50'
+                                }`}
+                              >
+                                Faltou
+                              </button>
 
-      {/* Histórico de Presenças Registadas */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden space-y-4">
-        <div className="p-4 border-b border-gray-100 bg-slate-50/50">
-          <h2 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Histórico de Presenças Registadas</h2>
+                              <button
+                                type="button"
+                                onClick={() => definirEstadoPresenca(aluno.id, null)}
+                                className={`px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
+                                  estadoAtual === null || estadoAtual === undefined
+                                    ? 'bg-gray-700 text-white shadow-sm'
+                                    : 'text-gray-600 hover:bg-gray-200'
+                                }`}
+                              >
+                                -
+                              </button>
+                            </div>
+                          </td>
+                          <td className="p-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => removerAtleta(aluno.id, aluno.nome)}
+                              title="Remover Atleta"
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                            >
+                              🗑️
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Histórico de Presenças Registadas */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden space-y-4">
+            <div className="p-4 border-b border-gray-100 bg-slate-50/50">
+              <h2 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Histórico de Presenças Registadas</h2>
+            </div>
+
+            {historicoPresencas.length === 0 ? (
+              <div className="p-8 text-center text-xs text-gray-500">Ainda não existem registos de presenças guardados.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                      <th className="p-4">Data</th>
+                      <th className="p-4">Atleta</th>
+                      <th className="p-4 text-center">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-xs">
+                    {historicoPresencas.map((registo) => (
+                      <tr key={registo.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-4 font-bold text-gray-900">📅 {registo.data}</td>
+                        <td className="p-4 font-bold text-gray-800">{registo.alunos?.nome || 'Atleta'}</td>
+                        <td className="p-4 text-center">
+                          {registo.presente === true ? (
+                            <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Presente
+                            </span>
+                          ) : registo.presente === false ? (
+                            <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-red-50 text-red-700 border border-red-200">
+                              Faltou
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                              -
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
+      )}
 
-        {historicoPresencas.length === 0 ? (
-          <div className="p-8 text-center text-xs text-gray-500">Ainda não existem registos de presenças guardados.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
-                  <th className="p-4">Data</th>
-                  <th className="p-4">Atleta</th>
-                  <th className="p-4 text-center">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-xs">
-                {historicoPresencas.map((registo) => (
-                  <tr key={registo.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="p-4 font-bold text-gray-900">📅 {registo.data}</td>
-                    <td className="p-4 font-bold text-gray-800">{registo.alunos?.nome || 'Atleta'}</td>
-                    <td className="p-4 text-center">
-                      {registo.presente === true ? (
-                        <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          Presente
-                        </span>
-                      ) : registo.presente === false ? (
-                        <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-red-50 text-red-700 border border-red-200">
-                          Faltou
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-gray-100 text-gray-600 border border-gray-200">
-                          -
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Conteúdo da Aba: Aniversários */}
+      {abaAtiva === 'aniversarios' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">Aniversários dos Atletas</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Lista organizada por mês (de Janeiro a Dezembro).</p>
           </div>
-        )}
-      </div>
+
+          {MESES.map((mes) => {
+            // Filtrar atletas que fazem anos neste mês
+            const atletasDoMes = alunos.filter((aluno) => {
+              if (!aluno.data_nascimento) return false;
+              const partes = aluno.data_nascimento.split('-');
+              if (partes.length < 2) return false;
+              const mesNasc = parseInt(partes[1], 10);
+              return mesNasc === mes.id;
+            });
+
+            // Opcional: Se quiser mostrar apenas os meses que têm aniversariantes, pode remover a condição abaixo, 
+            // mas mostrar todos em formato de secção sequencial é o aspeto ideal. Vamos mostrar todos ou apenas os que têm? 
+            // Mostramos todos para manter a estrutura completa, ou omitimos se vazio? O melhor é listar todos os meses sequencialmente.
+            
+            return (
+              <div key={mes.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+                <div className="inline-block px-3 py-1 bg-red-50 border border-red-100 text-red-600 text-xs font-black uppercase tracking-wider rounded-lg">
+                  {mes.nome}
+                </div>
+
+                {atletasDoMes.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">Nenhum aniversariante em {mes.nome}.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {atletasDoMes.map((aluno) => {
+                      const partesData = aluno.data_nascimento ? aluno.data_nascimento.split('-') : [];
+                      const diaMesFormatado = partesData.length === 3 ? `${partesData[2]}/${partesData[1]}` : aluno.data_nascimento;
+
+                      return (
+                        <div key={aluno.id} className="p-4 rounded-xl border border-gray-100 bg-slate-50/50 flex items-center justify-between gap-3 shadow-xs">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-blue-950/10 flex items-center justify-center text-blue-950 font-black text-xs">
+                              {aluno.nome.charAt(0)}
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-gray-900 line-clamp-1">{aluno.nome}</h4>
+                              <p className="text-[11px] text-gray-500">Nascimento: {aluno.data_nascimento || 'Não definida'}</p>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 bg-red-50 border border-red-200 text-red-700 text-[11px] font-bold rounded-lg whitespace-nowrap">
+                            🎂 {diaMesFormatado}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
