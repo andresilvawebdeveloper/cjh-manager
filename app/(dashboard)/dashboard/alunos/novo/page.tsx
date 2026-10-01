@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { calcularEscalao } from '../../../../../lib/supabase/escaloes';
-import { supabase } from '../../../../../lib/supabase/client'; // Ajuste o caminho se necessário para o seu client do supabase
+import { supabase } from '../../../../../lib/supabase/client';
 
 export default function NovoAlunoPage() {
   const router = useRouter();
@@ -13,8 +13,8 @@ export default function NovoAlunoPage() {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
 
-  // Calcula o escalão automaticamente sempre que a data de nascimento muda
-  const escalaoCalculado = dataNascimento ? calcularEscalao(dataNascimento) : '';
+  // Calcula o escalão automaticamente sempre que a data de nascimento existe
+  const escalaoCalculado = dataNascimento ? calcularEscalao(dataNascimento) : 'Não definido';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,15 +25,14 @@ export default function NovoAlunoPage() {
       const { error } = await supabase.from('alunos').insert([
         {
           nome,
-          data_nascimento: dataNascimento,
+          data_nascimento: dataNascimento ? dataNascimento : null,
           graduacao,
-          escalao: escalaoCalculado,
+          escalao: dataNascimento ? escalaoCalculado : 'Geral',
         },
       ]);
 
       if (error) throw error;
 
-      // Redireciona para a lista de alunos ou dashboard após sucesso
       router.push('/dashboard');
     } catch (err: any) {
       setErro('Erro ao guardar o aluno: ' + err.message);
@@ -66,10 +65,9 @@ export default function NovoAlunoPage() {
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Data de Nascimento</label>
+          <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Data de Nascimento (Opcional)</label>
           <input
             type="date"
-            required
             value={dataNascimento}
             onChange={(e) => setDataNascimento(e.target.value)}
             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all"
@@ -81,7 +79,7 @@ export default function NovoAlunoPage() {
           <input
             type="text"
             disabled
-            value={escalaoCalculado || 'Selecione a data de nascimento'}
+            value={escalaoCalculado}
             className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-600 text-sm font-semibold cursor-not-allowed"
           />
         </div>

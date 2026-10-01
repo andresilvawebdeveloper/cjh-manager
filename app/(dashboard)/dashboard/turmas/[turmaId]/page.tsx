@@ -199,7 +199,7 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
 
       if (error) throw error;
 
-      setAlunos(prev => prev.map(a => a.id === alunoId ? { ...a, data_nascimento: novaData } : a));
+      setAlunos(prev => prev.map(a => a.id === alunoId ? { ...a, data_nascimento: novaData || null } : a));
     } catch (err: any) {
       alert('Erro ao atualizar data de nascimento: ' + err.message);
     }
@@ -285,7 +285,7 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
       const { error } = await supabase.from('alunos').insert([
         {
           nome: nomeAluno,
-          data_nascimento: dataNascimento || null,
+          data_nascimento: dataNascimento ? dataNascimento : null,
           graduacao,
           escalao,
           turma_id: Number(turmaId),
@@ -381,7 +381,7 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Data de Nascimento</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Data de Nascimento (Opcional)</label>
                 <input
                   type="date"
                   value={dataNascimento}
@@ -665,7 +665,6 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
           </div>
 
           {MESES.map((mes) => {
-            // Filtrar atletas que fazem anos neste mês
             const atletasDoMes = alunos.filter((aluno) => {
               if (!aluno.data_nascimento) return false;
               const partes = aluno.data_nascimento.split('-');
@@ -674,10 +673,6 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
               return mesNasc === mes.id;
             });
 
-            // Opcional: Se quiser mostrar apenas os meses que têm aniversariantes, pode remover a condição abaixo, 
-            // mas mostrar todos em formato de secção sequencial é o aspeto ideal. Vamos mostrar todos ou apenas os que têm? 
-            // Mostramos todos para manter a estrutura completa, ou omitimos se vazio? O melhor é listar todos os meses sequencialmente.
-            
             return (
               <div key={mes.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
                 <div className="inline-block px-3 py-1 bg-red-50 border border-red-100 text-red-600 text-xs font-black uppercase tracking-wider rounded-lg">
