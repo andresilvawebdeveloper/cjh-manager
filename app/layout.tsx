@@ -1,15 +1,35 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import RegistarApp from './RegistarApp';
 
+// O manifesto da app instalável está em app/manifest.ts (o Next.js liga-o automaticamente)
 export const metadata: Metadata = {
   title: 'CJH Manager',
   description: 'CJH Manager - Clube de Judo Hajime',
-  manifest: '/manifest.json',
+  applicationName: 'CJH Manager',
   icons: {
-    icon: '/logo-clube.png',
-    shortcut: '/logo-clube.png',
-    apple: '/logo-clube.png',
+    icon: [
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/icons/apple-touch-icon.png',
   },
+  appleWebApp: {
+    capable: true,
+    title: 'CJH',
+    statusBarStyle: 'default',
+  },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#1F4E78' },
+    { media: '(prefers-color-scheme: dark)', color: '#0b1220' },
+  ],
 };
 
 export default function RootLayout({
@@ -29,6 +49,7 @@ export default function RootLayout({
       </head>
       <body className="bg-slate-50 text-gray-900 antialiased">
         {children}
+        <RegistarApp />
       </body>
     </html>
   );

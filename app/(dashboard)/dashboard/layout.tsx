@@ -1,5 +1,6 @@
 import React from 'react';
 import TemaToggle from '../../TemaToggle';
+import LembrarUltimoEcra from '../../LembrarUltimoEcra';
 
 export default function DashboardLayout({
   children,
@@ -19,6 +20,8 @@ export default function DashboardLayout({
           <TemaToggle />
         </div>
       </header>
+
+      <LembrarUltimoEcra />
 
       {/* Conteúdo Principal onde as páginas do dashboard são renderizadas */}
       <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
