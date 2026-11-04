@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, use } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../../../../../../../../lib/supabase/client';
-import { BUCKET_COMBATES, tempoParaSegundos } from '../../../../../../../../../lib/analise';
+import { BUCKET_COMBATES, enviarVideoCombate, tempoParaSegundos } from '../../../../../../../../../lib/analise';
 import { CORES_JUDOGI, LutadorRelatorio, RelatorioCombate } from '../../../../../../../../../lib/analiseIA';
 import { extrairFrames } from '../../../../../../../../../lib/extrairFrames';
 import PainelClaudeManual from './PainelClaudeManual';
@@ -57,6 +57,7 @@ export default function CombatePage({
 
   const [combate, setCombate] = useState<any>(null);
   const [videoUrl, setVideoUrl] = useState('');
+  const [enviandoVideo, setEnviandoVideo] = useState(false);
   const [notas, setNotas] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -84,16 +85,34 @@ export default function CombatePage({
       setNotas(data.notas || '');
       setRelatorio(data.analise_ia || null);
 
-      // Bucket privado: link temporário válido por 2 horas
-      const { data: signed, error: signedError } = await supabase.storage
-        .from(BUCKET_COMBATES)
-        .createSignedUrl(data.video_path, 60 * 60 * 2);
-      if (signedError) throw signedError;
-      setVideoUrl(signed.signedUrl);
+      setVideoUrl('');
+      if (data.video_path) await carregarVideo(data.video_path);
     } catch (err: any) {
       setErro('Erro ao carregar combate: ' + err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function carregarVideo(caminho: string) {
+    // Bucket privado: link temporário válido por 2 horas
+    const { data: signed, error } = await supabase.storage.from(BUCKET_COMBATES).createSignedUrl(caminho, 60 * 60 * 2);
+    if (error) throw error;
+    setVideoUrl(signed.signedUrl);
+  }
+
+  async function adicionarVideo(ficheiro: File | undefined) {
+    if (!ficheiro) return;
+    setEnviandoVideo(true);
+    setErro('');
+    try {
+      const caminho = await enviarVideoCombate(supabase, competicaoId, atletaId, Number(combateId), ficheiro);
+      setCombate((c: any) => ({ ...c, video_path: caminho }));
+      await carregarVideo(caminho);
+    } catch (err: any) {
+      setErro('Erro ao enviar vídeo: ' + err.message);
+    } finally {
+      setEnviandoVideo(false);
     }
   }
 
@@ -332,7 +351,35 @@ export default function CombatePage({
         </div>
       )}
 
+      {combate && !combate.video_path && (
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-dashed border-gray-300 text-center space-y-3">
+          <p className="text-3xl">🎥</p>
+          <h2 className="text-sm font-black text-gray-900">Este combate ainda não tem vídeo</h2>
+          <p className="text-xs text-gray-500">
+            Pode registar o que aconteceu nas notas abaixo. Quando tiver o vídeo, adicione-o aqui para o ver e analisar com IA.
+          </p>
+          <label
+            className={`inline-block px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-md cursor-pointer ${
+              enviandoVideo ? 'opacity-50 pointer-events-none' : ''
+            }`}
+          >
+            {enviandoVideo ? 'A enviar vídeo…' : '⬆ Adicionar vídeo'}
+            <input
+              type="file"
+              accept="video/*"
+              className="hidden"
+              disabled={enviandoVideo}
+              onChange={(e) => {
+                adicionarVideo(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </section>
+      )}
+
       {/* Painel de análise por IA */}
+      {videoUrl && (
       <section className="bg-gradient-to-br from-violet-50 to-blue-50 p-6 rounded-2xl border border-violet-100 space-y-4">
         <div>
           <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">🤖 Análise por Inteligência Artificial</h2>
@@ -391,6 +438,7 @@ export default function CombatePage({
           </p>
         )}
       </section>
+      )}
 
       {videoUrl && (
         <PainelClaudeManual
@@ -509,7 +557,7 @@ export default function CombatePage({
             setGuardado(false);
           }}
           rows={4}
-          placeholder="Observações próprias sobre o combate…"
+          placeholder="O que aconteceu no combate, observações próprias…"
           className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <div className="flex items-center gap-3">

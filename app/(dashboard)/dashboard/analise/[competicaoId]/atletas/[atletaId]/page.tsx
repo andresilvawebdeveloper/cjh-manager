@@ -3,14 +3,14 @@
 import { useEffect, useRef, useState, use } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../../../../../../lib/supabase/client';
-import { BUCKET_COMBATES, RESULTADOS, apagarFicheirosCombates, caminhoVideo, formatarData } from '../../../../../../../lib/analise';
+import { BUCKET_COMBATES, RESULTADOS, apagarFicheirosCombates, caminhoVideo, enviarVideoCombate, formatarData } from '../../../../../../../lib/analise';
 
 interface Combate {
   id: number;
   adversario: string | null;
   ronda: string | null;
   resultado: string | null;
-  video_path: string;
+  video_path: string | null;
   notas: string | null;
   analise_estado: string | null;
   created_at: string;
@@ -28,6 +28,12 @@ export default function AtletaCombatesPage({ params }: { params: Promise<{ compe
   const [progresso, setProgresso] = useState('');
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Registar combate sem vídeo
+  const [semVideo, setSemVideo] = useState({ adversario: '', ronda: '', resultado: '', notas: '' });
+  const [aRegistar, setARegistar] = useState(false);
+  // Combate ao qual se está a juntar um vídeo (upload posterior)
+  const [aEnviarVideoId, setAEnviarVideoId] = useState<number | null>(null);
 
   useEffect(() => {
     carregarDados();
@@ -86,6 +92,45 @@ export default function AtletaCombatesPage({ params }: { params: Promise<{ compe
     }
   }
 
+  async function registarSemVideo(e: React.FormEvent) {
+    e.preventDefault();
+    setARegistar(true);
+    setErro('');
+    try {
+      const { error } = await supabase.from('analise_combates').insert([
+        {
+          atleta_id: Number(atletaId),
+          video_path: null,
+          adversario: semVideo.adversario.trim() || null,
+          ronda: semVideo.ronda.trim() || null,
+          resultado: semVideo.resultado || null,
+          notas: semVideo.notas.trim() || null,
+        },
+      ]);
+      if (error) throw error;
+      setSemVideo({ adversario: '', ronda: '', resultado: '', notas: '' });
+      carregarDados();
+    } catch (err: any) {
+      setErro('Erro ao registar combate: ' + err.message);
+    } finally {
+      setARegistar(false);
+    }
+  }
+
+  async function adicionarVideo(combate: Combate, ficheiro: File | undefined) {
+    if (!ficheiro) return;
+    setAEnviarVideoId(combate.id);
+    setErro('');
+    try {
+      const caminho = await enviarVideoCombate(supabase, competicaoId, atletaId, combate.id, ficheiro);
+      setCombates((prev) => prev.map((c) => (c.id === combate.id ? { ...c, video_path: caminho } : c)));
+    } catch (err: any) {
+      setErro('Erro ao enviar vídeo: ' + err.message);
+    } finally {
+      setAEnviarVideoId(null);
+    }
+  }
+
   async function atualizarCombate(id: number, campos: Partial<Combate>) {
     setCombates((prev) => prev.map((c) => (c.id === id ? { ...c, ...campos } : c)));
     const { error } = await supabase.from('analise_combates').update(campos).eq('id', id);
@@ -93,7 +138,7 @@ export default function AtletaCombatesPage({ params }: { params: Promise<{ compe
   }
 
   async function removerCombate(combate: Combate, numero: number) {
-    if (!confirm(`Remover o combate ${numero}? O vídeo será apagado.`)) return;
+    if (!confirm(`Remover o combate ${numero}?${combate.video_path ? ' O vídeo será apagado.' : ''}`)) return;
     try {
       await apagarFicheirosCombates(supabase, [combate]);
       const { error } = await supabase.from('analise_combates').delete().eq('id', combate.id);
@@ -152,6 +197,53 @@ export default function AtletaCombatesPage({ params }: { params: Promise<{ compe
         </button>
       </form>
 
+      <form onSubmit={registarSemVideo} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+        <div>
+          <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Registar Combate sem Vídeo</h2>
+          <p className="text-xs text-gray-500 mt-1">Para quando não há vídeo (ou fica para mais tarde). O vídeo pode ser adicionado depois no próprio combate.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input
+            type="text"
+            value={semVideo.adversario}
+            onChange={(e) => setSemVideo({ ...semVideo, adversario: e.target.value })}
+            placeholder="Adversário"
+            className="px-3 py-2.5 border border-gray-200 rounded-xl text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="text"
+            value={semVideo.ronda}
+            onChange={(e) => setSemVideo({ ...semVideo, ronda: e.target.value })}
+            placeholder="Ronda (ex: 1/8, Meia-final)"
+            className="px-3 py-2.5 border border-gray-200 rounded-xl text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <select
+            value={semVideo.resultado}
+            onChange={(e) => setSemVideo({ ...semVideo, resultado: e.target.value })}
+            className="px-3 py-2.5 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Resultado…</option>
+            {RESULTADOS.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+        </div>
+        <textarea
+          value={semVideo.notas}
+          onChange={(e) => setSemVideo({ ...semVideo, notas: e.target.value })}
+          rows={3}
+          placeholder="O que aconteceu? (ex: ganhou por waza-ari de seoi-nage aos 2:30, sofreu 2 shidos por passividade…)"
+          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          type="submit"
+          disabled={aRegistar}
+          className="px-5 py-2.5 bg-slate-900 hover:bg-black disabled:opacity-50 text-white font-bold rounded-xl text-xs shadow-md transition-all"
+        >
+          {aRegistar ? 'A guardar...' : '+ Registar Combate'}
+        </button>
+      </form>
+
       <section className="space-y-3">
         <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Combates ({combates.length})</h2>
         {combates.length === 0 ? (
@@ -163,16 +255,38 @@ export default function AtletaCombatesPage({ params }: { params: Promise<{ compe
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
                     Combate {i + 1}
+                    {!c.video_path && (
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase bg-gray-100 text-gray-600">Sem vídeo</span>
+                    )}
                     {c.analise_estado === 'concluida' && (
                       <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase bg-violet-100 text-violet-800">🤖 Analisado</span>
                     )}
                   </h3>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    {!c.video_path && (
+                      <label
+                        className={`px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg text-xs cursor-pointer ${
+                          aEnviarVideoId !== null ? 'opacity-50 pointer-events-none' : ''
+                        }`}
+                      >
+                        {aEnviarVideoId === c.id ? 'A enviar vídeo…' : '⬆ Adicionar vídeo'}
+                        <input
+                          type="file"
+                          accept="video/*"
+                          className="hidden"
+                          disabled={aEnviarVideoId !== null}
+                          onChange={(e) => {
+                            adicionarVideo(c, e.target.files?.[0]);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                    )}
                     <Link
                       href={`/dashboard/analise/${competicaoId}/atletas/${atletaId}/combates/${c.id}`}
                       className="px-3 py-1.5 bg-slate-900 hover:bg-black text-white font-bold rounded-lg text-xs"
                     >
-                      ▶ Ver e Analisar
+                      {c.video_path ? '▶ Ver e Analisar' : '📝 Abrir'}
                     </Link>
                     <button onClick={() => removerCombate(c, i + 1)} className="text-xs font-bold text-red-500 hover:text-red-700">
                       Remover
