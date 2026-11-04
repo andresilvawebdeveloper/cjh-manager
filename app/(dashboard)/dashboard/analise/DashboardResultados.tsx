@@ -128,7 +128,20 @@ export default function DashboardResultados({ atualizacao, competicaoId }: Props
 
   if (loading && inscricoes.length === 0) return <p className="text-xs text-gray-500">A carregar resultados...</p>;
   if (erro) return <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl">{erro}</div>;
-  if (inscricoes.length === 0) return null;
+  if (inscricoes.length === 0) {
+    return (
+      <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-2">
+        <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">
+          📊 {porCompeticaoUnica ? 'Resultados da Competição' : 'Resultados Gerais'}
+        </h2>
+        <p className="text-xs text-gray-500">
+          {porCompeticaoUnica
+            ? 'Ainda não há atletas nesta competição. Adicione atletas e os seus combates (com o resultado) para ver aqui as vitórias e derrotas.'
+            : 'Ainda não há resultados. Adicione atletas e combates às competições para ver aqui as vitórias e derrotas.'}
+        </p>
+      </section>
+    );
+  }
 
   const cartoes = [
     porCompeticaoUnica
