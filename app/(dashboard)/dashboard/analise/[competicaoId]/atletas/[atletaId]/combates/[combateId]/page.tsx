@@ -7,6 +7,7 @@ import { BUCKET_COMBATES, enviarVideoCombate, tempoParaSegundos } from '../../..
 import { CORES_JUDOGI, LutadorRelatorio, RelatorioCombate } from '../../../../../../../../../lib/analiseIA';
 import { extrairFrames } from '../../../../../../../../../lib/extrairFrames';
 import PainelClaudeManual from './PainelClaudeManual';
+import { AutorizacoesAnalise, autorizacoesAnalise, confirmarAutorizacao } from '../../../../../../../../../lib/rgpd';
 
 // A análise automática usa a API da Anthropic (paga à parte). Ativar com NEXT_PUBLIC_ANALISE_IA_AUTOMATICA=true
 const ANALISE_AUTOMATICA = process.env.NEXT_PUBLIC_ANALISE_IA_AUTOMATICA === 'true';
@@ -58,6 +59,7 @@ export default function CombatePage({
   const [combate, setCombate] = useState<any>(null);
   const [videoUrl, setVideoUrl] = useState('');
   const [enviandoVideo, setEnviandoVideo] = useState(false);
+  const [autorizacoes, setAutorizacoes] = useState<AutorizacoesAnalise | null>(null);
   const [notas, setNotas] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -77,13 +79,14 @@ export default function CombatePage({
       setLoading(true);
       const { data, error } = await supabase
         .from('analise_combates')
-        .select('*, analise_atletas(nome, genero, categoria, analise_competicoes(nome, data))')
+        .select('*, analise_atletas(nome, genero, categoria, aluno_id, analise_competicoes(nome, data))')
         .eq('id', combateId)
         .single();
       if (error) throw error;
       setCombate(data);
       setNotas(data.notas || '');
       setRelatorio(data.analise_ia || null);
+      setAutorizacoes(await autorizacoesAnalise(data.analise_atletas?.aluno_id));
 
       setVideoUrl('');
       if (data.video_path) await carregarVideo(data.video_path);
@@ -103,6 +106,7 @@ export default function CombatePage({
 
   async function adicionarVideo(ficheiro: File | undefined) {
     if (!ficheiro) return;
+    if (!confirmarAutorizacao(autorizacoes, 'imagem')) return;
     setEnviandoVideo(true);
     setErro('');
     try {
@@ -134,6 +138,7 @@ export default function CombatePage({
   async function analisarComIA() {
     if (!videoUrl) return;
     if (relatorio && !confirm('Este combate já tem uma análise. Quer substituí-la por uma nova?')) return;
+    if (!confirmarAutorizacao(autorizacoes, 'ia')) return;
     setErro('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -455,6 +460,7 @@ export default function CombatePage({
             resultado: combate?.resultado,
           }}
           onRelatorio={guardarRelatorioManual}
+          podeAvancar={() => confirmarAutorizacao(autorizacoes, 'ia')}
         />
       )}
 

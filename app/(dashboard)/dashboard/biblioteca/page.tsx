@@ -388,7 +388,7 @@ export default function BibliotecaPage() {
                   <div className="aspect-video w-full rounded-xl overflow-hidden bg-slate-900 border border-gray-200 relative flex items-center justify-center">
                     {estaAtivo && videoId ? (
                       <iframe
-                        src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+                        src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`}
                         title={item.titulo}
                         className="w-full h-full absolute inset-0"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

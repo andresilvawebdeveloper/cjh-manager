@@ -17,11 +17,13 @@ interface Props {
   contexto: ContextoCombate;
   desativado?: boolean;
   onRelatorio: (relatorio: RelatorioCombate, numFrames: number) => Promise<void>;
+  /** Verificação de autorização (RGPD) antes de preparar as imagens para a IA */
+  podeAvancar?: () => boolean;
 }
 
 type Fase = 'parado' | 'a_extrair' | 'a_montar';
 
-export default function PainelClaudeManual({ videoUrl, contexto, desativado, onRelatorio }: Props) {
+export default function PainelClaudeManual({ videoUrl, contexto, desativado, onRelatorio, podeAvancar }: Props) {
   const [fase, setFase] = useState<Fase>('parado');
   const [progresso, setProgresso] = useState({ feitos: 0, total: 0 });
   const [folhas, setFolhas] = useState<Blob[]>([]);
@@ -41,6 +43,7 @@ export default function PainelClaudeManual({ videoUrl, contexto, desativado, onR
     folhas.map((b, i) => new File([b], `folha-${String(i + 1).padStart(2, '0')}.jpg`, { type: 'image/jpeg' }));
 
   async function preparar() {
+    if (podeAvancar && !podeAvancar()) return;
     setErro('');
     setCopiado(false);
     try {
@@ -127,6 +130,9 @@ export default function PainelClaudeManual({ videoUrl, contexto, desativado, onR
         <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">🤖 Análise com o Claude (plano Pro)</h2>
         <p className="text-xs text-gray-600 mt-1">
           Sem custos extra: a app prepara as imagens e o pedido, o Claude analisa no claude.ai e a resposta volta para aqui como relatório.
+        </p>
+        <p className="text-[11px] text-violet-800 mt-2">
+          🔒 Requer autorização de análise por IA. No claude.ai, confirme em Definições → Privacidade que a opção de usar as conversas para treinar os modelos está <b>desligada</b>.
         </p>
       </div>
 
