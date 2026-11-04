@@ -1,10 +1,10 @@
 // Identificação do clube (responsável pelo tratamento dos dados, no RGPD).
-// PREENCHER com os dados reais antes de publicar a política de privacidade e os formulários.
+// Usado na política de privacidade (/privacidade), no formulário de consentimento e na página RGPD.
 export const CLUBE = {
   nome: 'Clube de Judo Hajime',
   nomeCurto: 'CJH',
   nif: '513188983',
-  morada: '[PREENCHER morada da sede]',
+  morada: 'Rua Agostinho Neto, nº 34 - 1º B, 1750-006 Lisboa',
   email: 'clubedejudohajime@gmail.com',
   telefone: '', // opcional: se ficar vazio não aparece na política
   // Pessoa a contactar sobre proteção de dados (o clube pode não ter Encarregado de Proteção de Dados formal)

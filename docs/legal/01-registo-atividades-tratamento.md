@@ -1,6 +1,6 @@
 # Registo das Atividades de Tratamento (art. 30.º RGPD)
 
-**Responsável pelo tratamento:** Clube de Judo Hajime — NIF 513188983 — [PREENCHER morada] — clubedejudohajime@gmail.com
+**Responsável pelo tratamento:** Clube de Judo Hajime — NIF 513188983 — Rua Agostinho Neto, nº 34 - 1º B, 1750-006 Lisboa — clubedejudohajime@gmail.com
 **Ponto de contacto para proteção de dados:** Luis Bettencourt
 **Encarregado de Proteção de Dados (EPD):** não designado. Avaliação: o clube não trata dados em grande escala nem faz controlo sistemático em grande escala; a designação não é obrigatória, mas deve ser reavaliada se a atividade crescer.
 **Data da última atualização:** 2026-11-04
