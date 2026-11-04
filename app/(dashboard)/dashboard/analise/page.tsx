@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../../../lib/supabase/client';
-import { BUCKET_COMBATES, formatarData } from '../../../../lib/analise';
+import { apagarFicheirosCombates, formatarData } from '../../../../lib/analise';
 
 interface Competicao {
   id: number;
@@ -64,12 +64,9 @@ export default function AnalisePage() {
       // Apagar primeiro os vídeos do Storage (a base de dados apaga atletas/combates em cascata)
       const { data: atletas } = await supabase
         .from('analise_atletas')
-        .select('id, analise_combates(video_path)')
+        .select('id, analise_combates(id, video_path)')
         .eq('competicao_id', competicao.id);
-      const caminhos = (atletas || []).flatMap((a: any) => (a.analise_combates || []).map((c: any) => c.video_path));
-      if (caminhos.length > 0) {
-        await supabase.storage.from(BUCKET_COMBATES).remove(caminhos);
-      }
+      await apagarFicheirosCombates(supabase, (atletas || []).flatMap((a: any) => a.analise_combates || []));
 
       const { error } = await supabase.from('analise_competicoes').delete().eq('id', competicao.id);
       if (error) throw error;

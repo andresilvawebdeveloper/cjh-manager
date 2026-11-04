@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../../../../lib/supabase/client';
-import { BUCKET_COMBATES, CATEGORIAS_PESO, GENEROS, Genero, formatarData } from '../../../../../lib/analise';
+import { apagarFicheirosCombates, CATEGORIAS_PESO, GENEROS, Genero, formatarData } from '../../../../../lib/analise';
 
 interface Atleta {
   id: number;
@@ -99,8 +99,7 @@ export default function CompeticaoPage({ params }: { params: Promise<{ competica
   async function removerAtleta(atleta: Atleta) {
     if (!confirm(`Remover "${atleta.nome}" desta competição? Os vídeos dos combates também serão apagados.`)) return;
     try {
-      const caminhos = atleta.analise_combates.map((c) => c.video_path);
-      if (caminhos.length > 0) await supabase.storage.from(BUCKET_COMBATES).remove(caminhos);
+      await apagarFicheirosCombates(supabase, atleta.analise_combates);
       const { error } = await supabase.from('analise_atletas').delete().eq('id', atleta.id);
       if (error) throw error;
       carregarDados();
