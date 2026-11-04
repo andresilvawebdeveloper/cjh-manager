@@ -98,6 +98,10 @@ export default function LoginPage() {
             {loading ? 'A entrar...' : 'Iniciar Sessão'}
           </button>
         </form>
+
+        <p className="text-center text-[11px] text-gray-400">
+          <a href="/privacidade" className="underline hover:text-gray-600">Política de Privacidade</a>
+        </p>
       </div>
     </div>
   );

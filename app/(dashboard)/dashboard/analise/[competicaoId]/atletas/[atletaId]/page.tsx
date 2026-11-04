@@ -14,6 +14,7 @@ import {
   formatarData,
   rotuloClassificacao,
 } from '../../../../../../../lib/analise';
+import { AutorizacoesAnalise, autorizacoesAnalise, confirmarAutorizacao } from '../../../../../../../lib/rgpd';
 
 interface Combate {
   id: number;
@@ -30,6 +31,7 @@ export default function AtletaCombatesPage({ params }: { params: Promise<{ compe
   const { competicaoId, atletaId } = use(params);
 
   const [atleta, setAtleta] = useState<any>(null);
+  const [autorizacoes, setAutorizacoes] = useState<AutorizacoesAnalise | null>(null);
   const [combates, setCombates] = useState<Combate[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
@@ -59,6 +61,7 @@ export default function AtletaCombatesPage({ params }: { params: Promise<{ compe
       if (atletaRes.error) throw atletaRes.error;
       if (combatesRes.error) throw combatesRes.error;
       setAtleta(atletaRes.data);
+      setAutorizacoes(await autorizacoesAnalise(atletaRes.data?.aluno_id));
       setCombates(combatesRes.data || []);
     } catch (err: any) {
       setErro('Erro ao carregar atleta: ' + err.message);
@@ -70,6 +73,7 @@ export default function AtletaCombatesPage({ params }: { params: Promise<{ compe
   async function enviarCombates(e: React.FormEvent) {
     e.preventDefault();
     if (ficheiros.length === 0) return;
+    if (!confirmarAutorizacao(autorizacoes, 'imagem')) return;
     setUploading(true);
     setErro('');
     let enviados = 0;
@@ -136,6 +140,7 @@ export default function AtletaCombatesPage({ params }: { params: Promise<{ compe
 
   async function adicionarVideo(combate: Combate, ficheiro: File | undefined) {
     if (!ficheiro) return;
+    if (!confirmarAutorizacao(autorizacoes, 'imagem')) return;
     setAEnviarVideoId(combate.id);
     setErro('');
     try {
@@ -195,6 +200,20 @@ export default function AtletaCombatesPage({ params }: { params: Promise<{ compe
           </select>
         </div>
       </div>
+
+      {autorizacoes && !autorizacoes.desconhecido && (!autorizacoes.ligado || !autorizacoes.imagem || !autorizacoes.ia) && (
+        <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl">
+          🔒{' '}
+          {!autorizacoes.ligado
+            ? 'Este atleta não está ligado a uma ficha do clube: confirme que tem autorização escrita antes de enviar vídeos ou usar a análise por IA.'
+            : `Autorizações em falta: ${[!autorizacoes.imagem && 'imagem/vídeo', !autorizacoes.ia && 'análise por IA'].filter(Boolean).join(' e ')}. Registe-as em `}
+          {autorizacoes.ligado && (
+            <Link href="/dashboard/rgpd" className="font-bold underline">
+              Privacidade e RGPD
+            </Link>
+          )}
+        </div>
+      )}
 
       {erro && (
         <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl">{erro}</div>
