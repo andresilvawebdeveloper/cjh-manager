@@ -16,15 +16,36 @@ export const BUCKET_COMBATES = 'combates';
 /** Apaga do Storage os vídeos e eventuais frames de análise de uma lista de combates. */
 export async function apagarFicheirosCombates(
   supabase: SupabaseClient,
-  combates: { id: number; video_path: string }[]
+  combates: { id: number; video_path: string | null }[]
 ) {
   if (combates.length === 0) return;
-  const caminhos = combates.map((c) => c.video_path);
+  const caminhos = combates.map((c) => c.video_path).filter((p): p is string => !!p);
   for (const c of combates) {
     const { data } = await supabase.storage.from(BUCKET_COMBATES).list(`frames/${c.id}`, { limit: 1000 });
     (data || []).forEach((f) => caminhos.push(`frames/${c.id}/${f.name}`));
   }
-  await supabase.storage.from(BUCKET_COMBATES).remove(caminhos);
+  if (caminhos.length > 0) await supabase.storage.from(BUCKET_COMBATES).remove(caminhos);
+}
+
+/** Envia o vídeo de um combate já registado (ex: combate criado sem vídeo) e guarda o caminho. */
+export async function enviarVideoCombate(
+  supabase: SupabaseClient,
+  competicaoId: string | number,
+  atletaId: string | number,
+  combateId: number,
+  ficheiro: File
+): Promise<string> {
+  const caminho = caminhoVideo(competicaoId, atletaId, ficheiro);
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET_COMBATES)
+    .upload(caminho, ficheiro, { contentType: ficheiro.type || 'video/mp4', upsert: false });
+  if (uploadError) throw new Error(uploadError.message);
+  const { error } = await supabase.from('analise_combates').update({ video_path: caminho }).eq('id', combateId);
+  if (error) {
+    await supabase.storage.from(BUCKET_COMBATES).remove([caminho]);
+    throw error;
+  }
+  return caminho;
 }
 
 export function formatarTempo(segundos: number) {
