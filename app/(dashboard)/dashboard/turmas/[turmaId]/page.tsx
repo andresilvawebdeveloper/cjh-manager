@@ -169,6 +169,10 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
     }
   };
 
+  const marcarTodosPresentes = () => {
+    setPresencas(Object.fromEntries(alunos.map((a) => [a.id, true])));
+  };
+
   const definirEstadoPresenca = (alunoId: number, estado: boolean | null) => {
     setPresencas(prev => ({
       ...prev,
@@ -483,6 +487,13 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
                     className="p-2 text-xs border border-gray-300 rounded-xl bg-white text-gray-900 font-medium"
                   />
                 </div>
+                <button
+                  onClick={marcarTodosPresentes}
+                  disabled={savingPresencas || alunos.length === 0}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow transition-all cursor-pointer disabled:opacity-50"
+                >
+                  ✅ Marcar todos como presentes
+                </button>
                 <button
                   onClick={guardarPresencas}
                   disabled={savingPresencas || alunos.length === 0}
