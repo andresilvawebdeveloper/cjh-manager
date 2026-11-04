@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../../../lib/supabase/client';
 import { exportarMapaPresencasExcel } from './exportarExcel';
+import RankingAssiduidade from './RankingAssiduidade';
 
 const LISTA_GRADUACOES = [
   'Branco',
@@ -607,6 +608,12 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
               </div>
             )}
           </div>
+
+          {/* Ranking de assiduidade */}
+          <RankingAssiduidade
+            alunos={alunos}
+            presencas={historicoPresencas.filter((p) => !p.turma_id || String(p.turma_id) === String(turmaId))}
+          />
 
           {/* Histórico de Presenças Registadas */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden space-y-4">
