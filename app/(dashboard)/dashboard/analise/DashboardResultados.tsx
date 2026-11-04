@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../../../lib/supabase/client';
-import { formatarData } from '../../../../lib/analise';
+import { estiloClassificacao, formatarData, ordemClassificacao } from '../../../../lib/analise';
 
 interface Inscricao {
   id: number;
@@ -11,6 +11,7 @@ interface Inscricao {
   aluno_id: number | null;
   genero: string;
   categoria: string;
+  classificacao: string | null;
   competicao_id: number;
   analise_competicoes: { id: number; nome: string; data: string } | null;
   analise_combates: { id: number; resultado: string | null; adversario: string | null; ronda: string | null; created_at: string }[];
@@ -22,6 +23,9 @@ interface Totais {
   vitorias: number;
   derrotas: number;
   semResultado: number;
+  ouro: number;
+  prata: number;
+  bronze: number;
 }
 
 // O mesmo atleta pode aparecer em várias competições: agrupar pela ficha do clube ou pelo nome
@@ -35,6 +39,9 @@ function calcular(inscricoes: Inscricao[]): Totais {
     vitorias: combates.filter((c) => c.resultado === 'Vitória').length,
     derrotas: combates.filter((c) => c.resultado === 'Derrota').length,
     semResultado: combates.filter((c) => !c.resultado).length,
+    ouro: inscricoes.filter((i) => i.classificacao === '1º').length,
+    prata: inscricoes.filter((i) => i.classificacao === '2º').length,
+    bronze: inscricoes.filter((i) => i.classificacao === '3º').length,
   };
 }
 
@@ -51,6 +58,28 @@ function BarraVD({ t }: { t: Totais }) {
       <div className="bg-emerald-500" style={{ width: `${(t.vitorias / decididos) * 100}%` }} />
       <div className="bg-red-400" style={{ width: `${(t.derrotas / decididos) * 100}%` }} />
     </div>
+  );
+}
+
+function Badge({ c }: { c: string | null }) {
+  if (!c) return <span className="text-gray-300">—</span>;
+  const medalha = c === '1º' ? '🥇 ' : c === '2º' ? '🥈 ' : c === '3º' ? '🥉 ' : '';
+  return (
+    <span className={`inline-block text-[10px] font-extrabold px-2 py-0.5 rounded-md border whitespace-nowrap ${estiloClassificacao(c)}`}>
+      {medalha}
+      {c}
+    </span>
+  );
+}
+
+function Medalhas({ t }: { t: Totais }) {
+  if (!t.ouro && !t.prata && !t.bronze) return <span className="text-gray-300">—</span>;
+  return (
+    <span className="whitespace-nowrap font-bold text-gray-800">
+      {t.ouro > 0 && <span className="mr-1.5">🥇{t.ouro}</span>}
+      {t.prata > 0 && <span className="mr-1.5">🥈{t.prata}</span>}
+      {t.bronze > 0 && <span>🥉{t.bronze}</span>}
+    </span>
   );
 }
 
@@ -84,7 +113,7 @@ export default function DashboardResultados({ atualizacao, competicaoId }: Props
       let query = supabase
         .from('analise_atletas')
         .select(
-          'id, nome, aluno_id, genero, categoria, competicao_id, analise_competicoes(id, nome, data), analise_combates(id, resultado, adversario, ronda, created_at)'
+          'id, nome, aluno_id, genero, categoria, classificacao, competicao_id, analise_competicoes(id, nome, data), analise_combates(id, resultado, adversario, ronda, created_at)'
         );
       if (porCompeticaoUnica) query = query.eq('competicao_id', competicaoId);
       const { data, error } = await query;
@@ -106,8 +135,17 @@ export default function DashboardResultados({ atualizacao, competicaoId }: Props
     });
     return Array.from(grupos.entries())
       .map(([chave, lista]) => ({ chave, nome: lista[0].nome, genero: lista[0].genero, lista, totais: calcular(lista) }))
-      .sort((a, b) => b.totais.vitorias - a.totais.vitorias || a.totais.derrotas - b.totais.derrotas || a.nome.localeCompare(b.nome));
-  }, [inscricoes]);
+      .sort(
+        (a, b) =>
+          (porCompeticaoUnica ? ordemClassificacao(a.lista[0].classificacao) - ordemClassificacao(b.lista[0].classificacao) : 0) ||
+          b.totais.ouro - a.totais.ouro ||
+          b.totais.prata - a.totais.prata ||
+          b.totais.bronze - a.totais.bronze ||
+          b.totais.vitorias - a.totais.vitorias ||
+          a.totais.derrotas - b.totais.derrotas ||
+          a.nome.localeCompare(b.nome)
+      );
+  }, [inscricoes, porCompeticaoUnica]);
 
   // Se o atleta filtrado deixar de existir (ex: removido), voltar a "todos"
   useEffect(() => {
@@ -182,14 +220,20 @@ export default function DashboardResultados({ atualizacao, competicaoId }: Props
       </div>
 
       {/* Cartões de resumo */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {cartoes.map((c) => (
           <div key={c.titulo} className="bg-gray-50 rounded-xl p-4">
             <p className="text-[10px] font-bold text-gray-500 uppercase">{c.titulo}</p>
             <p className={`text-2xl font-black ${c.cor}`}>{c.valor}</p>
           </div>
         ))}
-        <div className="bg-gray-50 rounded-xl p-4 col-span-2 md:col-span-1 space-y-2">
+        <div className="bg-gray-50 rounded-xl p-4">
+          <p className="text-[10px] font-bold text-gray-500 uppercase">{selecionado && porCompeticaoUnica ? 'Classificação' : 'Medalhas'}</p>
+          <p className="text-lg mt-1">
+            {selecionado && porCompeticaoUnica ? <Badge c={selecionado.lista[0].classificacao} /> : <Medalhas t={totais} />}
+          </p>
+        </div>
+        <div className="bg-gray-50 rounded-xl p-4 space-y-2">
           <p className="text-[10px] font-bold text-gray-500 uppercase">% Vitórias</p>
           <p className="text-2xl"><Pct t={totais} /></p>
           <BarraVD t={totais} />
@@ -208,6 +252,7 @@ export default function DashboardResultados({ atualizacao, competicaoId }: Props
             <thead>
               <tr className="text-left text-[10px] font-bold text-gray-500 uppercase border-b border-gray-100">
                 <th className="py-2 pr-3">Atleta</th>
+                <th className="py-2 px-2 text-center">{porCompeticaoUnica ? 'Class.' : 'Medalhas'}</th>
                 <th className="py-2 px-2 text-center">{porCompeticaoUnica ? 'Categoria' : 'Comp.'}</th>
                 <th className="py-2 px-2 text-center">Combates</th>
                 <th className="py-2 px-2 text-center">V</th>
@@ -222,6 +267,9 @@ export default function DashboardResultados({ atualizacao, competicaoId }: Props
                   <td className="py-2.5 pr-3">
                     <span className="font-bold text-gray-900">{a.nome}</span>
                     <span className="text-[10px] text-gray-400 ml-1.5">{a.genero === 'Feminino' ? 'F' : 'M'}</span>
+                  </td>
+                  <td className="py-2.5 px-2 text-center">
+                    {porCompeticaoUnica ? <Badge c={a.lista[0].classificacao} /> : <Medalhas t={a.totais} />}
                   </td>
                   <td className="py-2.5 px-2 text-center text-gray-700">{porCompeticaoUnica ? a.lista[0].categoria : a.totais.competicoes}</td>
                   <td className="py-2.5 px-2 text-center text-gray-700">{a.totais.combates}</td>
@@ -292,6 +340,7 @@ export default function DashboardResultados({ atualizacao, competicaoId }: Props
                 <th className="py-2 pr-3">Competição</th>
                 <th className="py-2 px-2">Data</th>
                 <th className="py-2 px-2">Categoria</th>
+                <th className="py-2 px-2 text-center">Class.</th>
                 <th className="py-2 px-2 text-center">Combates</th>
                 <th className="py-2 px-2 text-center">V</th>
                 <th className="py-2 px-2 text-center">D</th>
@@ -307,6 +356,7 @@ export default function DashboardResultados({ atualizacao, competicaoId }: Props
                     <td className="py-2.5 pr-3 font-bold text-gray-900">{i.analise_competicoes?.nome}</td>
                     <td className="py-2.5 px-2 text-gray-600 whitespace-nowrap">{formatarData(i.analise_competicoes?.data || '')}</td>
                     <td className="py-2.5 px-2 text-gray-600">{i.categoria}</td>
+                    <td className="py-2.5 px-2 text-center"><Badge c={i.classificacao} /></td>
                     <td className="py-2.5 px-2 text-center text-gray-700">{t.combates}</td>
                     <td className="py-2.5 px-2 text-center font-bold text-emerald-600">{t.vitorias}</td>
                     <td className="py-2.5 px-2 text-center font-bold text-red-500">{t.derrotas}</td>

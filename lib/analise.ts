@@ -13,6 +13,41 @@ export const RESULTADOS = ['Vitória', 'Derrota'] as const;
 
 export const BUCKET_COMBATES = 'combates';
 
+/** Classificação final numa competição (do melhor para o pior). */
+export const CLASSIFICACOES = ['1º', '2º', '3º', '5º', '7º', '9º', 'N/C'] as const;
+
+export function rotuloClassificacao(c: string | null | undefined) {
+  if (!c) return '';
+  if (c === 'N/C') return 'N/C (não classificado)';
+  const medalha = c === '1º' ? '🥇 ' : c === '2º' ? '🥈 ' : c === '3º' ? '🥉 ' : '';
+  return `${medalha}${c} lugar`;
+}
+
+export function estiloClassificacao(c: string | null | undefined) {
+  switch (c) {
+    case '1º':
+      return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    case '2º':
+      return 'bg-slate-100 text-slate-700 border-slate-300';
+    case '3º':
+      return 'bg-orange-100 text-orange-800 border-orange-300';
+    case '5º':
+    case '7º':
+    case '9º':
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    case 'N/C':
+      return 'bg-gray-100 text-gray-500 border-gray-200';
+    default:
+      return 'bg-white text-gray-400 border-gray-200';
+  }
+}
+
+/** Posição para ordenar (1º primeiro; sem classificação no fim). */
+export const ordemClassificacao = (c: string | null | undefined) => {
+  const i = CLASSIFICACOES.indexOf((c || '') as any);
+  return i === -1 ? CLASSIFICACOES.length : i;
+};
+
 /** Apaga do Storage os vídeos e eventuais frames de análise de uma lista de combates. */
 export async function apagarFicheirosCombates(
   supabase: SupabaseClient,
