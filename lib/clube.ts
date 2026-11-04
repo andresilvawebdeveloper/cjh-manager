@@ -3,12 +3,12 @@
 export const CLUBE = {
   nome: 'Clube de Judo Hajime',
   nomeCurto: 'CJH',
-  nif: '[PREENCHER NIF]',
+  nif: '513188983',
   morada: '[PREENCHER morada da sede]',
-  email: '[PREENCHER email para assuntos de privacidade]',
-  telefone: '[PREENCHER telefone]',
+  email: 'clubedejudohajime@gmail.com',
+  telefone: '', // opcional: se ficar vazio não aparece na política
   // Pessoa a contactar sobre proteção de dados (o clube pode não ter Encarregado de Proteção de Dados formal)
-  responsavelPrivacidade: '[PREENCHER nome do responsável]',
+  responsavelPrivacidade: 'Luis Bettencourt',
   // Quanto tempo se guardam os dados depois de o atleta sair do clube
   prazoConservacaoAnos: 2,
   // Data da última revisão da política de privacidade
