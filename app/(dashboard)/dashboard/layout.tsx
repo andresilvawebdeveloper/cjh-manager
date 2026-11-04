@@ -1,4 +1,5 @@
 import React from 'react';
+import TemaToggle from '../../TemaToggle';
 
 export default function DashboardLayout({
   children,
@@ -14,7 +15,8 @@ export default function DashboardLayout({
           <span className="font-black text-gray-900 tracking-tight text-lg">CJH Manager</span>
         </div>
         <div className="flex items-center space-x-4">
-          <span className="text-xs font-bold text-gray-500 uppercase">Área de Treinador</span>
+          <span className="text-xs font-bold text-gray-500 uppercase hidden sm:inline">Área de Treinador</span>
+          <TemaToggle />
         </div>
       </header>
 

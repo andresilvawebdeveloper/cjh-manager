@@ -18,7 +18,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt">
+    <html lang="pt" suppressHydrationWarning>
+      <head>
+        {/* Aplica o tema antes de desenhar a página (evita "piscar" em branco) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('tema');if(t==='escuro'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="bg-slate-50 text-gray-900 antialiased">
         {children}
       </body>
