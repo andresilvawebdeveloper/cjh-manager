@@ -3,7 +3,17 @@
 import { useEffect, useRef, useState, use } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../../../../../../lib/supabase/client';
-import { BUCKET_COMBATES, RESULTADOS, apagarFicheirosCombates, caminhoVideo, enviarVideoCombate, formatarData } from '../../../../../../../lib/analise';
+import {
+  BUCKET_COMBATES,
+  CLASSIFICACOES,
+  RESULTADOS,
+  apagarFicheirosCombates,
+  caminhoVideo,
+  enviarVideoCombate,
+  estiloClassificacao,
+  formatarData,
+  rotuloClassificacao,
+} from '../../../../../../../lib/analise';
 
 interface Combate {
   id: number;
@@ -92,6 +102,13 @@ export default function AtletaCombatesPage({ params }: { params: Promise<{ compe
     }
   }
 
+  async function atualizarClassificacao(valor: string) {
+    const classificacao = valor || null;
+    const { error } = await supabase.from('analise_atletas').update({ classificacao }).eq('id', atletaId);
+    if (error) return alert('Erro ao atualizar classificação: ' + error.message);
+    setAtleta((a: any) => ({ ...a, classificacao }));
+  }
+
   async function registarSemVideo(e: React.FormEvent) {
     e.preventDefault();
     setARegistar(true);
@@ -163,7 +180,20 @@ export default function AtletaCombatesPage({ params }: { params: Promise<{ compe
           {atleta?.analise_competicoes?.nome} · {formatarData(atleta?.analise_competicoes?.data)}
         </span>
         <h1 className="text-2xl font-black text-gray-900 mt-1">{atleta?.nome}</h1>
-        <p className="text-xs font-bold text-gray-500 mt-1">{atleta?.genero} · {atleta?.categoria}</p>
+        <div className="flex flex-wrap items-center gap-3 mt-2">
+          <p className="text-xs font-bold text-gray-500">{atleta?.genero} · {atleta?.categoria}</p>
+          <select
+            value={atleta?.classificacao || ''}
+            onChange={(e) => atualizarClassificacao(e.target.value)}
+            title="Classificação final"
+            className={`px-2 py-1.5 border rounded-lg text-xs font-bold ${estiloClassificacao(atleta?.classificacao)}`}
+          >
+            <option value="">Classificação final…</option>
+            {CLASSIFICACOES.map((c) => (
+              <option key={c} value={c}>{rotuloClassificacao(c)}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {erro && (

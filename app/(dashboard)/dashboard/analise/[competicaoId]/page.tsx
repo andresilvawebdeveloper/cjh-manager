@@ -3,7 +3,16 @@
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../../../../lib/supabase/client';
-import { apagarFicheirosCombates, CATEGORIAS_PESO, GENEROS, Genero, formatarData } from '../../../../../lib/analise';
+import {
+  apagarFicheirosCombates,
+  CATEGORIAS_PESO,
+  CLASSIFICACOES,
+  GENEROS,
+  Genero,
+  estiloClassificacao,
+  formatarData,
+  rotuloClassificacao,
+} from '../../../../../lib/analise';
 import DashboardResultados from '../DashboardResultados';
 
 interface Atleta {
@@ -11,6 +20,7 @@ interface Atleta {
   nome: string;
   genero: Genero;
   categoria: string;
+  classificacao: string | null;
   aluno_id: number | null;
   analise_combates: { id: number; resultado: string | null; video_path: string }[];
 }
@@ -41,7 +51,7 @@ export default function CompeticaoPage({ params }: { params: Promise<{ competica
         supabase.from('analise_competicoes').select('*').eq('id', competicaoId).single(),
         supabase
           .from('analise_atletas')
-          .select('id, nome, genero, categoria, aluno_id, analise_combates(id, resultado, video_path)')
+          .select('id, nome, genero, categoria, classificacao, aluno_id, analise_combates(id, resultado, video_path)')
           .eq('competicao_id', competicaoId)
           .order('genero')
           .order('nome'),
@@ -91,6 +101,14 @@ export default function CompeticaoPage({ params }: { params: Promise<{ competica
     } finally {
       setSaving(false);
     }
+  }
+
+  async function atualizarClassificacao(atleta: Atleta, valor: string) {
+    const classificacao = valor || null;
+    const { error } = await supabase.from('analise_atletas').update({ classificacao }).eq('id', atleta.id);
+    if (error) return alert('Erro ao atualizar classificação: ' + error.message);
+    setAtletas((prev) => prev.map((a) => (a.id === atleta.id ? { ...a, classificacao } : a)));
+    setAtualizacao((n) => n + 1);
   }
 
   async function atualizarCategoria(atleta: Atleta, novaCategoria: string) {
@@ -200,13 +218,29 @@ export default function CompeticaoPage({ params }: { params: Promise<{ competica
                 return (
                   <div key={a.id} className="p-4 flex flex-wrap items-center gap-3 justify-between">
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-gray-900">{a.nome}</p>
+                      <p className="text-sm font-bold text-gray-900">
+                        {a.nome}
+                        {['1º', '2º', '3º'].includes(a.classificacao || '') && (
+                          <span className="ml-1.5">{a.classificacao === '1º' ? '🥇' : a.classificacao === '2º' ? '🥈' : '🥉'}</span>
+                        )}
+                      </p>
                       <p className="text-xs text-gray-500">
                         {a.analise_combates.length} {a.analise_combates.length === 1 ? 'combate' : 'combates'}
                         {a.analise_combates.length > 0 && ` · ${vitorias}V / ${derrotas}D`}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <select
+                        value={a.classificacao || ''}
+                        onChange={(e) => atualizarClassificacao(a, e.target.value)}
+                        title="Classificação final"
+                        className={`px-2 py-1.5 border rounded-lg text-xs font-bold ${estiloClassificacao(a.classificacao)}`}
+                      >
+                        <option value="">Classificação…</option>
+                        {CLASSIFICACOES.map((c) => (
+                          <option key={c} value={c}>{rotuloClassificacao(c)}</option>
+                        ))}
+                      </select>
                       <select
                         value={a.categoria}
                         onChange={(e) => atualizarCategoria(a, e.target.value)}
