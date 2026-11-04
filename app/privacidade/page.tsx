@@ -36,7 +36,8 @@ export default function PrivacidadePage() {
         <H2>1. Quem é o responsável pelos dados</H2>
         <p>
           {CLUBE.nome}, NIF {CLUBE.nif}, com sede em {CLUBE.morada}.<br />
-          Contacto para assuntos de privacidade: {CLUBE.responsavelPrivacidade} — {CLUBE.email} — {CLUBE.telefone}.
+          Contacto para assuntos de privacidade: {CLUBE.responsavelPrivacidade} — {CLUBE.email}
+          {CLUBE.telefone ? ` — ${CLUBE.telefone}` : ''}.
         </p>
 
         <H2>2. Que dados tratamos, para quê e com que fundamento</H2>
