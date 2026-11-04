@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, use } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../../../../../../lib/supabase/client';
-import { BUCKET_COMBATES, RESULTADOS, caminhoVideo, formatarData } from '../../../../../../../lib/analise';
+import { BUCKET_COMBATES, RESULTADOS, apagarFicheirosCombates, caminhoVideo, formatarData } from '../../../../../../../lib/analise';
 
 interface Combate {
   id: number;
@@ -12,6 +12,7 @@ interface Combate {
   resultado: string | null;
   video_path: string;
   notas: string | null;
+  analise_estado: string | null;
   created_at: string;
 }
 
@@ -94,7 +95,7 @@ export default function AtletaCombatesPage({ params }: { params: Promise<{ compe
   async function removerCombate(combate: Combate, numero: number) {
     if (!confirm(`Remover o combate ${numero}? O vídeo será apagado.`)) return;
     try {
-      await supabase.storage.from(BUCKET_COMBATES).remove([combate.video_path]);
+      await apagarFicheirosCombates(supabase, [combate]);
       const { error } = await supabase.from('analise_combates').delete().eq('id', combate.id);
       if (error) throw error;
       setCombates((prev) => prev.filter((c) => c.id !== combate.id));
@@ -160,7 +161,12 @@ export default function AtletaCombatesPage({ params }: { params: Promise<{ compe
             {combates.map((c, i) => (
               <div key={c.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-sm font-black text-gray-900">Combate {i + 1}</h3>
+                  <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
+                    Combate {i + 1}
+                    {c.analise_estado === 'concluida' && (
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase bg-violet-100 text-violet-800">🤖 Analisado</span>
+                    )}
+                  </h3>
                   <div className="flex items-center gap-3">
                     <Link
                       href={`/dashboard/analise/${competicaoId}/atletas/${atletaId}/combates/${c.id}`}

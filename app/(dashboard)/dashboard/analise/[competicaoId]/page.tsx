@@ -3,7 +3,8 @@
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../../../../lib/supabase/client';
-import { BUCKET_COMBATES, CATEGORIAS_PESO, GENEROS, Genero, formatarData } from '../../../../../lib/analise';
+import { apagarFicheirosCombates, CATEGORIAS_PESO, GENEROS, Genero, formatarData } from '../../../../../lib/analise';
+import DashboardResultados from '../DashboardResultados';
 
 interface Atleta {
   id: number;
@@ -27,6 +28,7 @@ export default function CompeticaoPage({ params }: { params: Promise<{ competica
   const [genero, setGenero] = useState<Genero>('Masculino');
   const [categoria, setCategoria] = useState(CATEGORIAS_PESO.Masculino[0]);
   const [saving, setSaving] = useState(false);
+  const [atualizacao, setAtualizacao] = useState(0);
 
   useEffect(() => {
     carregarDados();
@@ -49,6 +51,7 @@ export default function CompeticaoPage({ params }: { params: Promise<{ competica
       if (atletasRes.error) throw atletasRes.error;
       setCompeticao(compRes.data);
       setAtletas((atletasRes.data as Atleta[]) || []);
+      setAtualizacao((n) => n + 1);
       setAlunosClube(alunosRes.data || []);
     } catch (err: any) {
       setErro('Erro ao carregar competição: ' + err.message);
@@ -94,13 +97,13 @@ export default function CompeticaoPage({ params }: { params: Promise<{ competica
     const { error } = await supabase.from('analise_atletas').update({ categoria: novaCategoria }).eq('id', atleta.id);
     if (error) return alert('Erro ao atualizar categoria: ' + error.message);
     setAtletas((prev) => prev.map((a) => (a.id === atleta.id ? { ...a, categoria: novaCategoria } : a)));
+    setAtualizacao((n) => n + 1);
   }
 
   async function removerAtleta(atleta: Atleta) {
     if (!confirm(`Remover "${atleta.nome}" desta competição? Os vídeos dos combates também serão apagados.`)) return;
     try {
-      const caminhos = atleta.analise_combates.map((c) => c.video_path);
-      if (caminhos.length > 0) await supabase.storage.from(BUCKET_COMBATES).remove(caminhos);
+      await apagarFicheirosCombates(supabase, atleta.analise_combates);
       const { error } = await supabase.from('analise_atletas').delete().eq('id', atleta.id);
       if (error) throw error;
       carregarDados();
@@ -122,6 +125,8 @@ export default function CompeticaoPage({ params }: { params: Promise<{ competica
       {erro && (
         <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl">{erro}</div>
       )}
+
+      <DashboardResultados atualizacao={atualizacao} competicaoId={Number(competicaoId)} />
 
       <form onSubmit={adicionarAtleta} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
         <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Adicionar Atleta</h2>
