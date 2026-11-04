@@ -4,6 +4,8 @@ import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../../../lib/supabase/client';
+import { buscarTodasPresencas } from '../../../../../lib/presencas';
+import { exportarPresencasCentroExcel } from '../../turmas/[turmaId]/exportarExcel';
 
 interface HorarioInput {
   dia_semana: string;
@@ -44,11 +46,44 @@ export default function CentroDetalhePage({ params }: { params: Promise<{ centro
   const [horarios, setHorarios] = useState<HorarioInput[]>([{ dia_semana: 'Segunda-feira', hora_inicio: '18:00', hora_fim: '19:00' }]);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [exportando, setExportando] = useState(false);
   const [erro, setErro] = useState('');
 
   useEffect(() => {
     carregarDadosCentro();
   }, [centroId]);
+
+  async function exportarExcelCentro() {
+    if (turmas.length === 0) return;
+    setExportando(true);
+    setErro('');
+    try {
+      const { data: alunos, error } = await supabase
+        .from('alunos')
+        .select('*')
+        .in('turma_id', turmas.map((t) => t.id))
+        .order('nome', { ascending: true });
+      if (error) throw error;
+
+      const presencas = await buscarTodasPresencas((alunos || []).map((a: any) => a.id));
+      const turmasOrdenadas = [...turmas].sort((a, b) => a.nome.localeCompare(b.nome));
+      const semRegistos = exportarPresencasCentroExcel(
+        centro?.nome || 'centro',
+        turmasOrdenadas.map((turma) => {
+          const alunosTurma = (alunos || []).filter((a: any) => a.turma_id === turma.id);
+          const ids = new Set(alunosTurma.map((a: any) => a.id));
+          return { turma, alunos: alunosTurma, presencas: presencas.filter((p: any) => ids.has(p.aluno_id)) };
+        })
+      );
+      if (semRegistos.length > 0 && semRegistos.length < turmas.length) {
+        alert(`Exportado. Turmas sem presenças registadas (não incluídas): ${semRegistos.join(', ')}.`);
+      }
+    } catch (err: any) {
+      setErro('Erro ao exportar Excel: ' + err.message);
+    } finally {
+      setExportando(false);
+    }
+  }
 
   async function carregarDadosCentro() {
     if (!centroId) return;
@@ -192,7 +227,14 @@ export default function CentroDetalhePage({ params }: { params: Promise<{ centro
           <h1 className="text-2xl font-black text-gray-900 mt-1">{centro?.nome || 'Centro'}</h1>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={exportarExcelCentro}
+            disabled={exportando || turmas.length === 0}
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
+          >
+            {exportando ? 'A exportar...' : '📊 Exportar Excel do Centro'}
+          </button>
           <button
             onClick={removerCentro}
             disabled={deleting}

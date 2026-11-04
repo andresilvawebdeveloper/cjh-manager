@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx-js-style';
 
-export function exportarMapaPresencasExcel(turma: any, alunos: any[], todasPresencas: any[]) {
-  const turmaNome = turma?.nome || 'Turma';
+/** Cria a folha de Excel do mapa de presenças de uma turma (ou null se não houver registos). */
+export function criarFolhaPresencas(turma: any, alunos: any[], todasPresencas: any[]): XLSX.WorkSheet | null {
   
   const horariosTexto = turma?.turma_horarios && turma.turma_horarios.length > 0
     ? turma.turma_horarios.map((h: any) => `${h.hora_inicio.slice(0, 5)} - ${h.hora_fim.slice(0, 5)} (${h.dia_semana})`).join(' | ')
@@ -18,10 +18,7 @@ export function exportarMapaPresencasExcel(turma: any, alunos: any[], todasPrese
 
   const datasUnicas = Array.from(new Set(presencasFormatadas.map((p: any) => p.data_treino))).filter(Boolean).sort();
 
-  if (datasUnicas.length === 0) {
-    alert('Ainda não existem registos de presenças válidos para exportar nesta turma.');
-    return;
-  }
+  if (datasUnicas.length === 0) return null;
 
   const coresMeses: Record<string, string> = {
     'Setembro': 'D9E1F2',
@@ -170,9 +167,64 @@ export function exportarMapaPresencasExcel(turma: any, alunos: any[], todasPrese
     ...datasUnicas.map(() => ({ wch: 12 })),
   ];
 
-  const wb = XLSX.utils.book_new();
-  const nomeAbaLimpo = turmaNome.replace(/[\/\\?*()[\]]/g, '').substring(0, 31);
-  XLSX.utils.book_append_sheet(wb, ws, nomeAbaLimpo);
+  return ws;
+}
 
-  XLSX.writeFile(wb, `mapa_presencas_${turmaNome.toLowerCase().replace(/\s+/g, '_')}.xlsx`);
+/** Nome de folha válido no Excel (máx. 31 caracteres, sem caracteres proibidos) e único no livro. */
+function nomeFolha(nome: string, usados: Set<string>) {
+  const base = (nome || 'Turma').replace(/[\/\\?*:()[\]]/g, '').trim().substring(0, 31) || 'Turma';
+  let final = base;
+  for (let n = 2; usados.has(final.toLowerCase()); n++) {
+    const sufixo = ` (${n})`;
+    final = base.substring(0, 31 - sufixo.length) + sufixo;
+  }
+  usados.add(final.toLowerCase());
+  return final;
+}
+
+const nomeFicheiro = (nome: string) =>
+  nome
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '');
+
+/** Exporta o mapa de presenças de uma só turma. */
+export function exportarMapaPresencasExcel(turma: any, alunos: any[], todasPresencas: any[]) {
+  const turmaNome = turma?.nome || 'Turma';
+  const ws = criarFolhaPresencas(turma, alunos, todasPresencas);
+  if (!ws) {
+    alert('Ainda não existem registos de presenças válidos para exportar nesta turma.');
+    return;
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, nomeFolha(turmaNome, new Set()));
+  XLSX.writeFile(wb, `mapa_presencas_${nomeFicheiro(turmaNome)}.xlsx`);
+}
+
+/** Exporta um único ficheiro com uma folha por turma do centro. Devolve as turmas sem registos. */
+export function exportarPresencasCentroExcel(
+  centroNome: string,
+  turmas: { turma: any; alunos: any[]; presencas: any[] }[]
+): string[] {
+  const wb = XLSX.utils.book_new();
+  const usados = new Set<string>();
+  const semRegistos: string[] = [];
+
+  turmas.forEach(({ turma, alunos, presencas }) => {
+    const ws = criarFolhaPresencas(turma, alunos, presencas);
+    if (!ws) {
+      semRegistos.push(turma?.nome || 'Turma');
+      return;
+    }
+    XLSX.utils.book_append_sheet(wb, ws, nomeFolha(turma?.nome, usados));
+  });
+
+  if (wb.SheetNames.length === 0) {
+    alert('Ainda não existem registos de presenças em nenhuma turma deste centro.');
+    return semRegistos;
+  }
+  XLSX.writeFile(wb, `mapa_presencas_${nomeFicheiro(centroNome || 'centro')}.xlsx`);
+  return semRegistos;
 }

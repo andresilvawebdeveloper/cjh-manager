@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../../../../../lib/supabase/client';
 import { exportarMapaPresencasExcel } from './exportarExcel';
 import RankingAssiduidade from './RankingAssiduidade';
+import { buscarTodasPresencas } from '../../../../../lib/presencas';
 
 const LISTA_GRADUACOES = [
   'Branco',
@@ -149,14 +150,8 @@ export default function TurmaDetalhePage({ params }: { params: Promise<{ turmaId
     if (!listaAlunos || listaAlunos.length === 0) return;
     try {
       const idsAlunos = listaAlunos.map(a => a.id);
-      const { data, error } = await supabase
-        .from('presencas')
-        .select('*, alunos(nome)')
-        .in('aluno_id', idsAlunos)
-        .order('data', { ascending: false });
-
-      if (error) throw error;
-      setHistoricoPresencas(data || []);
+      const data = await buscarTodasPresencas(idsAlunos);
+      setHistoricoPresencas(data);
     } catch (err) {
       console.error('Erro ao carregar histórico de presenças:', err);
     }
