@@ -5,7 +5,7 @@ export const GENEROS = ['Feminino', 'Masculino'] as const;
 export type Genero = (typeof GENEROS)[number];
 
 export const CATEGORIAS_PESO: Record<Genero, string[]> = {
-  Feminino: ['-48kg', '-52kg', '-63kg', '-70kg', '+70kg'],
+  Feminino: ['-48kg', '-52kg', '-57kg', '-63kg', '-70kg', '+70kg'],
   Masculino: ['-34kg', '-38kg', '-42kg', '-46kg', '-50kg', '-55kg', '-60kg', '-66kg', '-73kg', '-81kg', '-90kg', '+90kg'],
 };
 
