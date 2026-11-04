@@ -6,6 +6,10 @@ import { supabase } from '../../../../../../../../../lib/supabase/client';
 import { BUCKET_COMBATES, tempoParaSegundos } from '../../../../../../../../../lib/analise';
 import { CORES_JUDOGI, LutadorRelatorio, RelatorioCombate } from '../../../../../../../../../lib/analiseIA';
 import { extrairFrames } from '../../../../../../../../../lib/extrairFrames';
+import PainelClaudeManual from './PainelClaudeManual';
+
+// A análise automática usa a API da Anthropic (paga à parte). Ativar com NEXT_PUBLIC_ANALISE_IA_AUTOMATICA=true
+const ANALISE_AUTOMATICA = process.env.NEXT_PUBLIC_ANALISE_IA_AUTOMATICA === 'true';
 
 type Fase = 'parado' | 'a_extrair' | 'a_enviar' | 'a_analisar';
 
@@ -72,7 +76,7 @@ export default function CombatePage({
       setLoading(true);
       const { data, error } = await supabase
         .from('analise_combates')
-        .select('*, analise_atletas(nome, categoria, analise_competicoes(nome))')
+        .select('*, analise_atletas(nome, genero, categoria, analise_competicoes(nome, data))')
         .eq('id', combateId)
         .single();
       if (error) throw error;
@@ -160,6 +164,20 @@ export default function CombatePage({
     } finally {
       setFase('parado');
     }
+  }
+
+  async function guardarRelatorioManual(novo: RelatorioCombate, numFrames: number) {
+    if (relatorio && !confirm('Este combate já tem uma análise. Quer substituí-la?')) return;
+    const campos = {
+      analise_ia: novo,
+      analise_estado: 'concluida',
+      analise_data: new Date().toISOString(),
+      analise_frames: numFrames || null,
+    };
+    const { error } = await supabase.from('analise_combates').update(campos).eq('id', combateId);
+    if (error) throw error;
+    setRelatorio(novo);
+    setCombate((c: any) => ({ ...c, ...campos }));
   }
 
   function irPara(momento: string) {
@@ -320,6 +338,7 @@ export default function CombatePage({
           <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">🤖 Análise por Inteligência Artificial</h2>
           <p className="text-xs text-gray-600 mt-1">
             A IA analisa o vídeo como um treinador de Judo experiente: kumikata, postura, deslocamento, tachi-waza e ne-waza dos dois lutadores.
+            Indique primeiro a cor do judogi do atleta do clube.
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-4">
@@ -345,13 +364,15 @@ export default function CombatePage({
               ))}
             </div>
           </div>
-          <button
-            onClick={analisarComIA}
-            disabled={ocupado || !videoUrl}
-            className="px-5 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs shadow-md transition-all"
-          >
-            {ocupado ? 'A analisar…' : relatorio ? '↻ Analisar novamente' : '✨ Analisar com IA'}
-          </button>
+          {ANALISE_AUTOMATICA && (
+            <button
+              onClick={analisarComIA}
+              disabled={ocupado || !videoUrl}
+              className="px-5 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs shadow-md transition-all"
+            >
+              {ocupado ? 'A analisar…' : relatorio ? '↻ Analisar automaticamente' : '⚡ Análise automática (API)'}
+            </button>
+          )}
         </div>
         {ocupado && (
           <div className="space-y-2">
@@ -370,6 +391,24 @@ export default function CombatePage({
           </p>
         )}
       </section>
+
+      {videoUrl && (
+        <PainelClaudeManual
+          videoUrl={videoUrl}
+          desativado={ocupado}
+          contexto={{
+            competicao: atleta?.analise_competicoes?.nome,
+            data: atleta?.analise_competicoes?.data,
+            categoria: [atleta?.genero, atleta?.categoria].filter(Boolean).join(' '),
+            ronda: combate?.ronda,
+            atleta: atleta?.nome || 'Atleta',
+            corAtleta: combate?.cor_judogi || 'Branco',
+            adversario: combate?.adversario,
+            resultado: combate?.resultado,
+          }}
+          onRelatorio={guardarRelatorioManual}
+        />
+      )}
 
       {relatorio && (
         <>

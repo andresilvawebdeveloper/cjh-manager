@@ -71,3 +71,26 @@ export const INTERVALO_MIN_SEGUNDOS = 0.75;
 export const LADO_MAIOR_PX = 1024;
 
 export const CORES_JUDOGI = ['Branco', 'Azul'] as const;
+
+/** Lê a resposta colada do claude.ai (com ou sem ```json) e valida-a. */
+export function interpretarRespostaClaude(texto: string): { relatorio?: RelatorioCombate; erro?: string } {
+  const inicio = texto.indexOf('{');
+  const fim = texto.lastIndexOf('}');
+  if (inicio === -1 || fim <= inicio) return { erro: 'Não encontrei nenhum JSON na resposta. Copie a resposta completa do Claude.' };
+  let dados: unknown;
+  try {
+    dados = JSON.parse(texto.slice(inicio, fim + 1));
+  } catch {
+    return { erro: 'A resposta não é JSON válido (pode ter ficado cortada). Peça ao Claude: "Repete só o JSON completo".' };
+  }
+  const resultado = RelatorioCombateSchema.safeParse(dados);
+  if (!resultado.success) {
+    const problema = resultado.error.issues[0];
+    return { erro: `O JSON não tem o formato esperado (campo "${problema?.path.join('.')}"). Peça ao Claude para seguir exatamente a estrutura pedida.` };
+  }
+  return { relatorio: resultado.data };
+}
+
+// Parâmetros para a análise manual no claude.ai (limites de anexos e de uso do plano Pro)
+export const MANUAL_MAX_FRAMES = 96;
+export const MANUAL_INTERVALO_MIN = 1.5;

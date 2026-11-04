@@ -31,9 +31,16 @@ function esperarEvento(el: HTMLMediaElement, evento: string, timeoutMs = 20000) 
   });
 }
 
+export interface OpcoesExtracao {
+  maxFrames?: number;
+  intervaloMin?: number;
+  ladoMaior?: number;
+}
+
 export async function extrairFrames(
   videoUrl: string,
-  onProgresso: (feitos: number, total: number) => void
+  onProgresso: (feitos: number, total: number) => void,
+  { maxFrames = MAX_FRAMES, intervaloMin = INTERVALO_MIN_SEGUNDOS, ladoMaior = LADO_MAIOR_PX }: OpcoesExtracao = {}
 ): Promise<FrameExtraido[]> {
   const video = document.createElement('video');
   video.crossOrigin = 'anonymous';
@@ -49,10 +56,10 @@ export async function extrairFrames(
     const duracao = video.duration;
     if (!isFinite(duracao) || duracao <= 0) throw new Error('Não foi possível determinar a duração do vídeo.');
 
-    const total = Math.max(1, Math.min(MAX_FRAMES, Math.floor(duracao / INTERVALO_MIN_SEGUNDOS)));
+    const total = Math.max(1, Math.min(maxFrames, Math.floor(duracao / intervaloMin)));
     const passo = duracao / total;
 
-    const escala = Math.min(1, LADO_MAIOR_PX / Math.max(video.videoWidth, video.videoHeight));
+    const escala = Math.min(1, ladoMaior / Math.max(video.videoWidth, video.videoHeight));
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(video.videoWidth * escala);
     canvas.height = Math.round(video.videoHeight * escala);
