@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sem ligação · CJH Manager</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+           font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #111827; padding: 16px; box-sizing: border-box; }
+    @media (prefers-color-scheme: dark) { body { background: #0b1220; color: #e2e8f0; } .cartao { background: #1e293b !important; } }
+    .cartao { background: #fff; border-radius: 24px; padding: 32px; max-width: 360px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+    img { width: 72px; height: 72px; }
+    h1 { font-size: 18px; margin: 16px 0 8px; }
+    p { font-size: 14px; opacity: .7; margin: 0 0 20px; }
+    button { background: #1e40af; color: #fff; border: 0; border-radius: 12px; padding: 12px 20px; font-weight: 700; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="cartao">
+    <img src="/icons/icon-192.png" alt="">
+    <h1>Sem ligação à internet</h1>
+    <p>A CJH Manager precisa de internet para mostrar os dados do clube. Verifique a rede e tente novamente.</p>
+    <button onclick="location.reload()">Tentar novamente</button>
+  </div>
+</body>
+</html>

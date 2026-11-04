@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase/client';
+import { lerUltimoEcra } from '../lib/ultimoEcra';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,6 +11,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
+
+  // Se já houver sessão iniciada, voltar diretamente ao último ecrã usado
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) router.replace(lerUltimoEcra());
+    });
+  }, [router]);
 
   const lidarComLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +40,7 @@ export default function LoginPage() {
       console.log('Sessão iniciada com sucesso:', data);
 
       // Forçar redirecionamento e atualização do router
-      router.push('/dashboard');
+      router.push(lerUltimoEcra());
       router.refresh();
     } catch (err: any) {
       console.error('Catch erro:', err);
