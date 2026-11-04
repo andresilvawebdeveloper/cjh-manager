@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../../../lib/supabase/client';
 import { apagarFicheirosCombates, formatarData } from '../../../../lib/analise';
+import DashboardResultados from './DashboardResultados';
 
 interface Competicao {
   id: number;
@@ -20,6 +21,7 @@ export default function AnalisePage() {
   const [nome, setNome] = useState('');
   const [data, setData] = useState(new Date().toISOString().split('T')[0]);
   const [saving, setSaving] = useState(false);
+  const [atualizacao, setAtualizacao] = useState(0);
 
   useEffect(() => {
     carregarCompeticoes();
@@ -34,6 +36,7 @@ export default function AnalisePage() {
         .order('data', { ascending: false });
       if (error) throw error;
       setCompeticoes(data || []);
+      setAtualizacao((n) => n + 1);
     } catch (err: any) {
       setErro('Erro ao carregar competições: ' + err.message);
     } finally {
@@ -89,6 +92,8 @@ export default function AnalisePage() {
       {erro && (
         <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl">{erro}</div>
       )}
+
+      <DashboardResultados atualizacao={atualizacao} />
 
       <form onSubmit={adicionarCompeticao} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
         <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Nova Competição</h2>
