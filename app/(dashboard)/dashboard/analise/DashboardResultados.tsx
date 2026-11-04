@@ -13,7 +13,7 @@ interface Inscricao {
   categoria: string;
   competicao_id: number;
   analise_competicoes: { id: number; nome: string; data: string } | null;
-  analise_combates: { id: number; resultado: string | null }[];
+  analise_combates: { id: number; resultado: string | null; adversario: string | null; ronda: string | null; created_at: string }[];
 }
 
 interface Totais {
@@ -61,7 +61,14 @@ function Pct({ t }: { t: Totais }) {
   return <span className={`font-black ${cor}`}>{p}%</span>;
 }
 
-export default function DashboardResultados({ atualizacao }: { atualizacao: number }) {
+interface Props {
+  atualizacao: number;
+  /** Se indicado, mostra apenas os resultados desta competição */
+  competicaoId?: number;
+}
+
+export default function DashboardResultados({ atualizacao, competicaoId }: Props) {
+  const porCompeticaoUnica = competicaoId !== undefined;
   const [inscricoes, setInscricoes] = useState<Inscricao[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
@@ -69,14 +76,18 @@ export default function DashboardResultados({ atualizacao }: { atualizacao: numb
 
   useEffect(() => {
     carregar();
-  }, [atualizacao]);
+  }, [atualizacao, competicaoId]);
 
   async function carregar() {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('analise_atletas')
-        .select('id, nome, aluno_id, genero, categoria, competicao_id, analise_competicoes(id, nome, data), analise_combates(id, resultado)');
+        .select(
+          'id, nome, aluno_id, genero, categoria, competicao_id, analise_competicoes(id, nome, data), analise_combates(id, resultado, adversario, ronda, created_at)'
+        );
+      if (porCompeticaoUnica) query = query.eq('competicao_id', competicaoId);
+      const { data, error } = await query;
       if (error) throw error;
       setInscricoes((data as any) || []);
     } catch (err: any) {
@@ -120,7 +131,9 @@ export default function DashboardResultados({ atualizacao }: { atualizacao: numb
   if (inscricoes.length === 0) return null;
 
   const cartoes = [
-    { titulo: 'Competições', valor: totais.competicoes, cor: 'text-gray-900' },
+    porCompeticaoUnica
+      ? { titulo: 'Atletas', valor: selecionado ? 1 : atletas.length, cor: 'text-gray-900' }
+      : { titulo: 'Competições', valor: totais.competicoes, cor: 'text-gray-900' },
     { titulo: 'Combates', valor: totais.combates, cor: 'text-gray-900' },
     { titulo: 'Vitórias', valor: totais.vitorias, cor: 'text-emerald-600' },
     { titulo: 'Derrotas', valor: totais.derrotas, cor: 'text-red-500' },
@@ -130,8 +143,12 @@ export default function DashboardResultados({ atualizacao }: { atualizacao: numb
     <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">📊 Resultados Gerais</h2>
-          <p className="text-xs text-gray-500 mt-1">Vitórias e derrotas em todas as competições registadas.</p>
+          <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">
+            📊 {porCompeticaoUnica ? 'Resultados da Competição' : 'Resultados Gerais'}
+          </h2>
+          <p className="text-xs text-gray-500 mt-1">
+            {porCompeticaoUnica ? 'Vitórias e derrotas dos atletas nesta competição.' : 'Vitórias e derrotas em todas as competições registadas.'}
+          </p>
         </div>
         <div>
           <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Atleta</label>
@@ -178,7 +195,7 @@ export default function DashboardResultados({ atualizacao }: { atualizacao: numb
             <thead>
               <tr className="text-left text-[10px] font-bold text-gray-500 uppercase border-b border-gray-100">
                 <th className="py-2 pr-3">Atleta</th>
-                <th className="py-2 px-2 text-center">Comp.</th>
+                <th className="py-2 px-2 text-center">{porCompeticaoUnica ? 'Categoria' : 'Comp.'}</th>
                 <th className="py-2 px-2 text-center">Combates</th>
                 <th className="py-2 px-2 text-center">V</th>
                 <th className="py-2 px-2 text-center">D</th>
@@ -193,7 +210,7 @@ export default function DashboardResultados({ atualizacao }: { atualizacao: numb
                     <span className="font-bold text-gray-900">{a.nome}</span>
                     <span className="text-[10px] text-gray-400 ml-1.5">{a.genero === 'Feminino' ? 'F' : 'M'}</span>
                   </td>
-                  <td className="py-2.5 px-2 text-center text-gray-700">{a.totais.competicoes}</td>
+                  <td className="py-2.5 px-2 text-center text-gray-700">{porCompeticaoUnica ? a.lista[0].categoria : a.totais.competicoes}</td>
                   <td className="py-2.5 px-2 text-center text-gray-700">{a.totais.combates}</td>
                   <td className="py-2.5 px-2 text-center font-bold text-emerald-600">{a.totais.vitorias}</td>
                   <td className="py-2.5 px-2 text-center font-bold text-red-500">{a.totais.derrotas}</td>
@@ -201,6 +218,58 @@ export default function DashboardResultados({ atualizacao }: { atualizacao: numb
                   <td className="py-2.5 pl-2 hidden md:table-cell"><BarraVD t={a.totais} /></td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        ) : porCompeticaoUnica ? (
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-[10px] font-bold text-gray-500 uppercase border-b border-gray-100">
+                <th className="py-2 pr-3">Combate</th>
+                <th className="py-2 px-2">Adversário</th>
+                <th className="py-2 px-2">Ronda</th>
+                <th className="py-2 px-2 text-center">Resultado</th>
+                <th className="py-2 pl-2"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {selecionado.lista.flatMap((i) =>
+                (i.analise_combates || [])
+                  .slice()
+                  .sort((a, b) => a.created_at.localeCompare(b.created_at))
+                  .map((c, n) => (
+                    <tr key={c.id}>
+                      <td className="py-2.5 pr-3 font-bold text-gray-900">Combate {n + 1}</td>
+                      <td className="py-2.5 px-2 text-gray-700">{c.adversario || '—'}</td>
+                      <td className="py-2.5 px-2 text-gray-600">{c.ronda || '—'}</td>
+                      <td className="py-2.5 px-2 text-center">
+                        {c.resultado ? (
+                          <span
+                            className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase ${
+                              c.resultado === 'Vitória' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'
+                            }`}
+                          >
+                            {c.resultado}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 pl-2 text-right">
+                        <Link
+                          href={`/dashboard/analise/${i.competicao_id}/atletas/${i.id}/combates/${c.id}`}
+                          className="font-bold text-blue-600 hover:underline whitespace-nowrap"
+                        >
+                          Ver →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+              )}
+              {selecionado.totais.combates === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-4 text-center text-gray-400">Ainda não há combates registados para este atleta.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         ) : (
