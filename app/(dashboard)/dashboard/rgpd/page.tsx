@@ -180,21 +180,6 @@ export default function RgpdPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Link href="/consentimento" target="_blank" className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:bg-gray-50">
-          <p className="text-sm font-bold text-gray-900">🖨️ Formulário de consentimento</p>
-          <p className="text-xs text-gray-500 mt-1">Para imprimir e entregar aos encarregados de educação.</p>
-        </Link>
-        <Link href="/privacidade" target="_blank" className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:bg-gray-50">
-          <p className="text-sm font-bold text-gray-900">📄 Política de privacidade</p>
-          <p className="text-xs text-gray-500 mt-1">Página pública para partilhar com as famílias.</p>
-        </Link>
-        <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-sm font-bold text-gray-900">📁 Documentos internos</p>
-          <p className="text-xs text-gray-500 mt-1">Registo de tratamentos, avaliação de impacto e procedimento de violação de dados: pasta <code>docs/legal</code> do repositório.</p>
-        </div>
-      </div>
-
       {erro && <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl">{erro}</div>}
 
       <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
