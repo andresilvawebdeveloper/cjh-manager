@@ -14,6 +14,7 @@ import {
 } from '../../../../lib/sonsCronometro';
 import HajimeMusic from './HajimeMusic';
 import CampoNumero from './CampoNumero';
+import { ModoEcra, desligarEcra, ligarEcra } from '../../../../lib/ecraLigado';
 
 type Fase = 'parado' | 'preparar' | 'combate' | 'descanso' | 'terminado';
 
@@ -55,7 +56,7 @@ export default function CronometroPage() {
     avisos: new Set<string>(), // avisos já dados nesta fase ('30', '3', '2', '1')
     config: CONFIG_INICIAL,
   });
-  const wakeLock = useRef<any>(null);
+  const [modoEcra, setModoEcra] = useState<ModoEcra>(null);
   const areaRef = useRef<HTMLDivElement>(null);
 
   const duracaoCombateMs = (c: Config) => (c.minutos * 60 + c.segundos) * 1000;
@@ -86,15 +87,10 @@ export default function CronometroPage() {
   }
 
   async function manterEcraLigado(ligar: boolean) {
-    try {
-      if (ligar && 'wakeLock' in navigator && !wakeLock.current) {
-        wakeLock.current = await (navigator as any).wakeLock.request('screen');
-      } else if (!ligar && wakeLock.current) {
-        await wakeLock.current.release();
-        wakeLock.current = null;
-      }
-    } catch {
-      // nem todos os browsers deixam manter o ecrã ligado
+    if (ligar) setModoEcra(await ligarEcra());
+    else {
+      await desligarEcra();
+      setModoEcra(null);
     }
   }
 
@@ -169,12 +165,16 @@ export default function CronometroPage() {
     return () => clearInterval(id);
   }, [iniciarFase, terminarTudo]);
 
+  // Ao sair da página do cronómetro, deixar o ecrã apagar-se normalmente
+  useEffect(() => () => {
+    desligarEcra();
+  }, []);
+
   // Se o ecrã voltar a ficar visível, voltar a pedir para o manter ligado
   useEffect(() => {
     const aoVoltar = () => {
       const r = ref.current;
       if (document.visibilityState === 'visible' && (r.fase === 'combate' || r.fase === 'descanso' || r.fase === 'preparar')) {
-        wakeLock.current = null;
         manterEcraLigado(true);
       }
     };
@@ -302,6 +302,11 @@ export default function CronometroPage() {
           {config.rondas > 1 && fase !== 'parado' && (
             <span className="bg-black/20 rounded-full px-3 py-1">
               Ronda {Math.min(ronda, config.rondas)} / {config.rondas}
+            </span>
+          )}
+          {aCorrer && modoEcra && (
+            <span className="bg-black/20 rounded-full px-3 py-1 normal-case tracking-normal" title="O ecrã não se apaga enquanto o cronómetro está a correr">
+              🔆 Ecrã ligado
             </span>
           )}
         </div>
