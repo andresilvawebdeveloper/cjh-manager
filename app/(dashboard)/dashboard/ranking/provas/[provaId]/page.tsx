@@ -259,7 +259,9 @@ export default function ProvaRankingPage({ params }: { params: Promise<{ provaId
               {lista.map((r) => (
                 <div key={r.id} className="p-3 flex flex-wrap items-center gap-3 justify-between">
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-gray-900">{r.ranking_atletas?.nome}</p>
+                    <Link href={`/dashboard/ranking/atletas/${r.atleta_id}`} className="text-sm font-bold text-gray-900 hover:text-blue-600 hover:underline">
+                      {r.ranking_atletas?.nome}
+                    </Link>
                     <p className="text-xs text-gray-500">{nomeCentro(r.centro_id)}{r.peso ? ` · ${r.peso}` : ''}</p>
                   </div>
                   <div className="flex items-center gap-2">
