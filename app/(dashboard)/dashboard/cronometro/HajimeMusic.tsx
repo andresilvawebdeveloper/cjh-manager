@@ -57,6 +57,8 @@ export default function HajimeMusic({ emCombate, cronometroAtivo }: Props) {
   const [erro, setErro] = useState('');
   const [pausarForaDoCombate, setPausarForaDoCombate] = useState(false);
   const [aTocar, setATocar] = useState(false);
+  // O leitor incorporado só toca amostras de 30 s nos telemóveis: fica como pré-visualização opcional
+  const [preVisualizar, setPreVisualizar] = useState(false);
 
   const alvoRef = useRef<HTMLDivElement>(null);
   const controlador = useRef<any>(null);
@@ -74,6 +76,12 @@ export default function HajimeMusic({ emCombate, cronometroAtivo }: Props) {
 
   // Criar (ou trocar) o leitor quando há link
   useEffect(() => {
+    if (!preVisualizar) {
+      controlador.current?.destroy?.();
+      controlador.current = null;
+      setATocar(false);
+      return;
+    }
     if (!link || !alvoRef.current) return;
     let cancelado = false;
     carregarApi().then((api) => {
@@ -99,7 +107,7 @@ export default function HajimeMusic({ emCombate, cronometroAtivo }: Props) {
     return () => {
       cancelado = true;
     };
-  }, [link]);
+  }, [link, preVisualizar]);
 
   // Pausar no descanso/fim e retomar no Start (opcional)
   const anterior = useRef(emCombate);
@@ -133,6 +141,22 @@ export default function HajimeMusic({ emCombate, cronometroAtivo }: Props) {
     } catch {
       // sem armazenamento: o link só dura esta visita
     }
+  }
+
+  /** Abre a playlist na app do Spotify (músicas completas). Se a app não abrir, abre o link normal. */
+  function abrirNoSpotify() {
+    if (!link) return;
+    const uri = link.replace('https://open.spotify.com/', 'spotify:').replace('/', ':');
+    let saiu = false;
+    const aoSair = () => {
+      if (document.visibilityState === 'hidden') saiu = true;
+    };
+    document.addEventListener('visibilitychange', aoSair);
+    window.location.href = uri;
+    setTimeout(() => {
+      document.removeEventListener('visibilitychange', aoSair);
+      if (!saiu) window.open(link, '_blank', 'noopener');
+    }, 1500);
   }
 
   function mudarPausar(v: boolean) {
@@ -205,22 +229,40 @@ export default function HajimeMusic({ emCombate, cronometroAtivo }: Props) {
         </div>
       )}
 
-      {/* O leitor fica sempre montado para a música não parar ao mexer no cronómetro */}
-      <div ref={alvoRef} className={link ? 'rounded-xl overflow-hidden min-h-[152px]' : 'hidden'} />
-
-      {link && (
-        <label className="flex items-start gap-2 text-xs text-gray-700 cursor-pointer">
-          <input type="checkbox" checked={pausarForaDoCombate} onChange={(e) => mudarPausar(e.target.checked)} className="mt-0.5 w-4 h-4" />
-          <span>
-            <b>Pausar a música no descanso e no fim</b>, e retomar no "Start" seguinte.
-          </span>
-        </label>
+      {link && !aEditar && (
+        <>
+          <button
+            onClick={abrirNoSpotify}
+            className="w-full flex items-center justify-center gap-3 px-5 py-4 bg-[#1DB954] hover:bg-[#1aa34a] text-white font-black rounded-2xl text-base shadow-md transition-all"
+          >
+            <span className="text-2xl leading-none">▶</span>
+            {link === PLAYLIST_HAJIME ? 'Abrir Hajime Music no Spotify' : 'Abrir a playlist no Spotify'}
+          </button>
+          <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
+            <li>Toque no botão: a playlist abre na app do Spotify, com as músicas completas.</li>
+            <li>Carregue em ▶ no Spotify e volte à CJH Manager.</li>
+            <li>Deixe o cronómetro aberto no ecrã: a música continua a tocar e os bips e a voz ouvem-se por cima.</li>
+          </ol>
+        </>
       )}
 
-      <p className="text-[11px] text-gray-400">
-        Para ouvir as músicas completas é preciso ter sessão iniciada no Spotify neste browser (sem sessão, o Spotify só toca 30 segundos de cada música).
-        A música e o cronómetro funcionam ao mesmo tempo; a voz ouve-se por cima da música.
-      </p>
+      {/* Pré-visualização dentro da app (o Spotify só deixa tocar amostras de 30 s aqui) */}
+      {link && (
+        <div className="border-t border-gray-100 pt-3 space-y-3">
+          <button onClick={() => setPreVisualizar((v) => !v)} className="text-xs font-bold text-gray-500 hover:text-gray-800">
+            {preVisualizar ? '▾ Esconder pré-visualização' : '▸ Ver a playlist aqui (amostras de 30 segundos)'}
+          </button>
+          <div ref={alvoRef} className={preVisualizar ? 'rounded-xl overflow-hidden min-h-[152px]' : 'hidden'} />
+          {preVisualizar && (
+            <label className="flex items-start gap-2 text-xs text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={pausarForaDoCombate} onChange={(e) => mudarPausar(e.target.checked)} className="mt-0.5 w-4 h-4" />
+              <span>
+                <b>Pausar este leitor no descanso e no fim</b>, e retomar no "Start" seguinte (não controla a app do Spotify).
+              </span>
+            </label>
+          )}
+        </div>
+      )}
     </section>
   );
 }

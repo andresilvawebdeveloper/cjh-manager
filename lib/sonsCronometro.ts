@@ -76,6 +76,13 @@ let contexto: AudioContext | null = null;
  */
 export function desbloquearAudio() {
   if (typeof window === 'undefined') return;
+  // Safari (iPhone): sons "ambiente" misturam-se com o Spotify em vez de o pausar
+  try {
+    const sessao = (navigator as any).audioSession;
+    if (sessao && sessao.type !== 'ambient') sessao.type = 'ambient';
+  } catch {
+    // browsers sem Audio Session API: comportamento normal
+  }
   try {
     const Ctx = window.AudioContext || (window as any).webkitAudioContext;
     if (!contexto && Ctx) contexto = new Ctx();

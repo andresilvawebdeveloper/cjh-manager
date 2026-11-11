@@ -13,6 +13,7 @@ import {
   pararVoz,
 } from '../../../../lib/sonsCronometro';
 import HajimeMusic from './HajimeMusic';
+import CampoNumero from './CampoNumero';
 
 type Fase = 'parado' | 'preparar' | 'combate' | 'descanso' | 'terminado';
 
@@ -375,28 +376,11 @@ export default function CronometroPage() {
           <div className="grid grid-cols-2 gap-3 max-w-xs">
             <div>
               <span className="text-[10px] font-bold text-gray-500 uppercase">Minutos</span>
-              <input
-                type="number"
-                min={0}
-                max={59}
-                disabled={aCorrer}
-                value={config.minutos}
-                onChange={(e) => mudarConfig({ minutos: Math.max(0, Math.min(59, Number(e.target.value) || 0)) })}
-                className={campo}
-              />
+              <CampoNumero valor={config.minutos} min={0} max={59} passo={1} disabled={aCorrer} onChange={(n) => mudarConfig({ minutos: n })} />
             </div>
             <div>
               <span className="text-[10px] font-bold text-gray-500 uppercase">Segundos</span>
-              <input
-                type="number"
-                min={0}
-                max={59}
-                step={5}
-                disabled={aCorrer}
-                value={config.segundos}
-                onChange={(e) => mudarConfig({ segundos: Math.max(0, Math.min(59, Number(e.target.value) || 0)) })}
-                className={campo}
-              />
+              <CampoNumero valor={config.segundos} min={0} max={59} passo={5} disabled={aCorrer} onChange={(n) => mudarConfig({ segundos: n })} />
             </div>
           </div>
         </div>
@@ -404,28 +388,11 @@ export default function CronometroPage() {
         <div className="grid grid-cols-2 gap-3 max-w-md">
           <div>
             <label className="block text-xs font-bold text-gray-600 mb-1">Rondas</label>
-            <input
-              type="number"
-              min={1}
-              max={50}
-              disabled={aCorrer}
-              value={config.rondas}
-              onChange={(e) => mudarConfig({ rondas: Math.max(1, Math.min(50, Number(e.target.value) || 1)) })}
-              className={campo}
-            />
+            <CampoNumero valor={config.rondas} min={1} max={50} passo={1} disabled={aCorrer} onChange={(n) => mudarConfig({ rondas: n })} />
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-600 mb-1">Descanso entre rondas (seg.)</label>
-            <input
-              type="number"
-              min={0}
-              max={600}
-              step={5}
-              disabled={aCorrer || config.rondas <= 1}
-              value={config.descanso}
-              onChange={(e) => mudarConfig({ descanso: Math.max(0, Math.min(600, Number(e.target.value) || 0)) })}
-              className={campo}
-            />
+            <CampoNumero valor={config.descanso} min={0} max={600} passo={5} disabled={aCorrer || config.rondas <= 1} onChange={(n) => mudarConfig({ descanso: n })} />
           </div>
         </div>
 
