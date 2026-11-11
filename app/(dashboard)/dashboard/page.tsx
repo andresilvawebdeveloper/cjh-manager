@@ -61,19 +61,6 @@ export default function DashboardPage() {
         </Link>
 
         <Link 
-          href="/dashboard/eventos"
-          className="p-6 bg-white hover:bg-blue-50/50 border border-gray-100 rounded-2xl shadow-sm transition-all group flex flex-col justify-between space-y-4"
-        >
-          <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 font-bold group-hover:bg-amber-600 group-hover:text-white transition-all">
-            🏆
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">Eventos e Torneios</h2>
-            <p className="text-xs text-gray-500 mt-1">Gerir torneios, estágios, presenças de atletas e sistema de pontos.</p>
-          </div>
-        </Link>
-
-        <Link 
           href="/dashboard/biblioteca"
           className="p-6 bg-white hover:bg-blue-50/50 border border-gray-100 rounded-2xl shadow-sm transition-all group flex flex-col justify-between space-y-4"
         >
@@ -120,7 +107,7 @@ export default function DashboardPage() {
             🏅
           </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">Ranking de Torneios</h2>
+            <h2 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">Ranking</h2>
             <p className="text-xs text-gray-500 mt-1">Pontos por ano de nascimento e competição entre centros.</p>
           </div>
         </Link>
