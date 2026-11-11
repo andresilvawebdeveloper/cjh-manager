@@ -63,6 +63,11 @@ insert into public.ranking_epocas (nome, anos) values
 on conflict (nome) do nothing;
 
 -- Regras de acesso: apenas treinadores autorizados (função criada em 20261108_seguranca_rls.sql)
+alter table public.ranking_epocas enable row level security;
+alter table public.ranking_centros enable row level security;
+alter table public.ranking_provas enable row level security;
+alter table public.ranking_atletas enable row level security;
+alter table public.ranking_resultados enable row level security;
 do $$
 declare t text;
 begin
