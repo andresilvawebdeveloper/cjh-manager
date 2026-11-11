@@ -1,15 +1,17 @@
 // Sons do cronómetro: voz (Web Speech API) e bips (Web Audio API).
 // Tudo funciona no próprio dispositivo, sem internet.
 
-export type VozInicio = 'hajime' | 'comeca';
-export type VozFim = 'mate' | 'terminou';
+export type VozInicio = 'start' | 'hajime' | 'comeca';
+export type VozFim = 'end' | 'mate' | 'terminou';
 
 export const OPCOES_INICIO: { valor: VozInicio; rotulo: string }[] = [
+  { valor: 'start', rotulo: 'Start' },
   { valor: 'hajime', rotulo: 'Hajime' },
   { valor: 'comeca', rotulo: 'Começa' },
 ];
 
 export const OPCOES_FIM: { valor: VozFim; rotulo: string }[] = [
+  { valor: 'end', rotulo: 'End' },
   { valor: 'mate', rotulo: 'Maté' },
   { valor: 'terminou', rotulo: 'Terminou' },
 ];
@@ -25,6 +27,8 @@ const FRASES: Record<VozInicio | VozFim | 'trinta', Frase> = {
   // Em japonês a pronúncia fica correta; sem voz japonesa, o inglês aproxima-se melhor que o português
   hajime: { texto: 'はじめ', lingua: 'ja', alternativa: { texto: 'Hajime', lingua: 'en' } },
   mate: { texto: 'まて', lingua: 'ja', alternativa: { texto: 'Matte', lingua: 'en' } },
+  start: { texto: 'Start!', lingua: 'en' },
+  end: { texto: 'End!', lingua: 'en' },
   comeca: { texto: 'Começa', lingua: 'pt' },
   terminou: { texto: 'Terminou', lingua: 'pt' },
   trinta: { texto: '30 seconds left', lingua: 'en' },

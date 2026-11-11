@@ -12,8 +12,11 @@ import {
   falar,
   pararVoz,
 } from '../../../../lib/sonsCronometro';
+import HajimeMusic from './HajimeMusic';
 
-type Fase = 'parado' | 'combate' | 'descanso' | 'terminado';
+type Fase = 'parado' | 'preparar' | 'combate' | 'descanso' | 'terminado';
+
+const CONTAGEM_MS = 3000; // 3 bips (1 por segundo) antes de cada "Start"
 
 interface Config {
   minutos: number;
@@ -24,7 +27,7 @@ interface Config {
   vozFim: VozFim;
 }
 
-const CONFIG_INICIAL: Config = { minutos: 4, segundos: 0, rondas: 1, descanso: 30, vozInicio: 'hajime', vozFim: 'mate' };
+const CONFIG_INICIAL: Config = { minutos: 4, segundos: 0, rondas: 1, descanso: 30, vozInicio: 'start', vozFim: 'end' };
 const PREDEFINIDOS = [1, 2, 3, 4, 5];
 const CHAVE_CONFIG = 'cronometro-config';
 
@@ -94,7 +97,7 @@ export default function CronometroPage() {
     }
   }
 
-  const iniciarFase = useCallback((novaFase: 'combate' | 'descanso', duracaoMs: number) => {
+  const iniciarFase = useCallback((novaFase: 'preparar' | 'combate' | 'descanso', duracaoMs: number) => {
     const r = ref.current;
     r.fase = novaFase;
     r.duracaoFase = duracaoMs;
@@ -117,7 +120,7 @@ export default function CronometroPage() {
   useEffect(() => {
     const id = setInterval(() => {
       const r = ref.current;
-      if ((r.fase !== 'combate' && r.fase !== 'descanso') || r.pausado) return;
+      if ((r.fase !== 'combate' && r.fase !== 'descanso' && r.fase !== 'preparar') || r.pausado) return;
 
       const restante = r.fimEm - performance.now();
 
@@ -127,7 +130,7 @@ export default function CronometroPage() {
         falar('trinta');
       }
 
-      // Bip em cada um dos últimos 3 segundos
+      // Bip em cada um dos últimos 3 segundos (contagem antes do Start, fim do combate e fim do descanso)
       for (const s of [3, 2, 1]) {
         if (restante <= s * 1000 && !r.avisos.has(String(s))) {
           r.avisos.add(String(s));
@@ -141,7 +144,9 @@ export default function CronometroPage() {
       }
 
       // Fim da fase
-      if (r.fase === 'combate') {
+      if (r.fase === 'preparar') {
+        iniciarFase('combate', duracaoCombateMs(r.config));
+      } else if (r.fase === 'combate') {
         falar(r.config.vozFim);
         if (r.ronda < r.config.rondas) {
           if (r.config.descanso > 0) {
@@ -149,7 +154,7 @@ export default function CronometroPage() {
           } else {
             r.ronda += 1;
             setRonda(r.ronda);
-            iniciarFase('combate', duracaoCombateMs(r.config));
+            iniciarFase('preparar', CONTAGEM_MS);
           }
         } else {
           terminarTudo();
@@ -167,7 +172,7 @@ export default function CronometroPage() {
   useEffect(() => {
     const aoVoltar = () => {
       const r = ref.current;
-      if (document.visibilityState === 'visible' && (r.fase === 'combate' || r.fase === 'descanso')) {
+      if (document.visibilityState === 'visible' && (r.fase === 'combate' || r.fase === 'descanso' || r.fase === 'preparar')) {
         wakeLock.current = null;
         manterEcraLigado(true);
       }
@@ -186,7 +191,7 @@ export default function CronometroPage() {
     setRonda(1);
     setPausado(false);
     manterEcraLigado(true);
-    iniciarFase('combate', duracaoCombateMs(config));
+    iniciarFase('preparar', CONTAGEM_MS);
   }
 
   function pausarOuRetomar() {
@@ -225,14 +230,16 @@ export default function CronometroPage() {
     setPausado(false);
     r.ronda += 1;
     setRonda(r.ronda);
-    iniciarFase('combate', duracaoCombateMs(r.config));
+    iniciarFase('preparar', CONTAGEM_MS);
   }
 
   function testarSons() {
     desbloquearAudio();
-    falar(config.vozInicio);
-    setTimeout(() => bip(), 1200);
-    setTimeout(() => falar(config.vozFim), 1800);
+    bip();
+    setTimeout(() => bip(), 1000);
+    setTimeout(() => bip(), 2000);
+    setTimeout(() => falar(config.vozInicio), 3000);
+    setTimeout(() => falar(config.vozFim), 4500);
   }
 
   function ecraInteiro() {
@@ -242,10 +249,14 @@ export default function CronometroPage() {
     else (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
   }
 
-  const aCorrer = fase === 'combate' || fase === 'descanso';
+  const aCorrer = fase === 'combate' || fase === 'descanso' || fase === 'preparar';
   const ultimosSegundos = fase === 'combate' && restanteMs <= 10000;
   const corPainel =
-    fase === 'combate'
+    fase === 'preparar'
+      ? pausado
+        ? 'bg-amber-500'
+        : 'bg-slate-700'
+      : fase === 'combate'
       ? pausado
         ? 'bg-amber-500'
         : 'bg-emerald-600'
@@ -255,7 +266,11 @@ export default function CronometroPage() {
           ? 'bg-red-600'
           : 'bg-slate-800';
   const textoFase =
-    fase === 'combate'
+    fase === 'preparar'
+      ? pausado
+        ? 'Pausa'
+        : 'Prontos…'
+      : fase === 'combate'
       ? pausado
         ? 'Pausa'
         : 'Combate'
@@ -293,7 +308,7 @@ export default function CronometroPage() {
           className={`font-black tabular-nums leading-none text-[22vw] sm:text-[9rem] ${ultimosSegundos && !pausado ? 'animate-pulse' : ''}`}
           aria-live="off"
         >
-          {formatar(restanteMs)}
+          {fase === 'preparar' ? Math.max(1, Math.ceil(restanteMs / 1000)) : formatar(restanteMs)}
         </div>
         <div className="w-full max-w-md h-2 bg-black/20 rounded-full overflow-hidden">
           <div className="h-full bg-white/80 transition-all" style={{ width: `${Math.min(100, progresso * 100)}%` }} />
@@ -331,6 +346,8 @@ export default function CronometroPage() {
           </button>
         </div>
       </div>
+
+      <HajimeMusic emCombate={fase === 'combate' && !pausado} cronometroAtivo={fase !== 'parado'} />
 
       {/* Configuração */}
       <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
@@ -457,7 +474,7 @@ export default function CronometroPage() {
             🔈 Testar sons
           </button>
           <p className="text-[11px] text-gray-500">
-            Avisos automáticos: "30 seconds left" em combates com mais de 1 minuto e um bip em cada um dos últimos 3 segundos.
+            Avisos automáticos: 3 bips (um por segundo) antes de cada início e antes de cada fim, e "30 seconds left" em combates com mais de 1 minuto.
           </p>
         </div>
       </section>
