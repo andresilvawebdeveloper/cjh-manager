@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabase/client';
+import BotaoCopiaSeguranca from '../../BotaoCopiaSeguranca';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -37,12 +38,15 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <Link
-          href="/dashboard/perfil"
-          className="px-4 py-2.5 bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
-        >
-          🥋 Área do Treinador
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <BotaoCopiaSeguranca />
+          <Link
+            href="/dashboard/perfil"
+            className="px-4 py-2.5 bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
+          >
+            🥋 Área do Treinador
+          </Link>
+        </div>
       </div>
 
       {/* Grelha de Acessos Rápidos */}

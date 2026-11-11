@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import * as XLSX from 'xlsx-js-style';
 import { supabase } from '../../../../lib/supabase/client';
+import { lerTudo } from '../../../../lib/supabase/utils';
 import { formatarData } from '../../../../lib/analise';
 import {
   AtletaRanking,
@@ -14,20 +15,7 @@ import {
   proximaEpoca,
 } from '../../../../lib/rankingTorneios';
 
-const PAGINA = 1000;
 const CHAVE_EPOCA = 'ranking-epoca';
-
-/** Lê todas as linhas (o Supabase devolve no máximo 1000 por pedido). */
-async function lerTudo<T>(consulta: (de: number, ate: number) => any): Promise<T[]> {
-  const todas: T[] = [];
-  for (let de = 0; ; de += PAGINA) {
-    const { data, error } = await consulta(de, de + PAGINA - 1);
-    if (error) throw error;
-    todas.push(...(data || []));
-    if (!data || data.length < PAGINA) break;
-  }
-  return todas;
-}
 
 const MEDALHA = (posicao: number) => (posicao === 1 ? '🥇' : posicao === 2 ? '🥈' : posicao === 3 ? '🥉' : '');
 
@@ -296,7 +284,9 @@ export default function RankingTorneiosPage() {
                           <tr key={l.atleta.id} className={l.posicao <= 3 ? 'bg-yellow-50/40' : ''}>
                             <td className="py-2.5 pr-2 font-black text-gray-900">{MEDALHA(l.posicao) || `${l.posicao}.º`}</td>
                             <td className="py-2.5 px-2">
-                              <span className="font-bold text-gray-900">{l.atleta.nome}</span>
+                              <Link href={`/dashboard/ranking/atletas/${l.atleta.id}`} className="font-bold text-gray-900 hover:text-blue-600 hover:underline">
+                                {l.atleta.nome}
+                              </Link>
                               {ano === null && <span className="text-[10px] text-gray-400 ml-1.5">{l.atleta.ano}</span>}
                               <span className="block sm:hidden text-[10px] text-gray-500 mt-0.5">
                                 {[l.ouro && `🥇${l.ouro}`, l.prata && `🥈${l.prata}`, l.bronze && `🥉${l.bronze}`].filter(Boolean).join(' ') || '—'} · {l.provas} {l.provas === 1 ? 'prova' : 'provas'}
