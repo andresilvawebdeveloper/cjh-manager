@@ -214,7 +214,7 @@ export default function RankingTorneiosPage() {
         <div>
           <Link href="/dashboard" className="text-xs font-bold text-gray-500 hover:text-blue-600 block mb-2">← Voltar ao Dashboard</Link>
           <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Torneios</span>
-          <h1 className="text-2xl font-black text-gray-900 mt-1">Ranking de Torneios</h1>
+          <h1 className="text-2xl font-black text-gray-900 mt-1">Ranking</h1>
           <p className="text-xs text-gray-500 mt-1">1.º lugar = 5 pts · 2.º lugar = 3 pts · 3.º lugar = 1 pt</p>
         </div>
         {epocas.length > 0 && (
