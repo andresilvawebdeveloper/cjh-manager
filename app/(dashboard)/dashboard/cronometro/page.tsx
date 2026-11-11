@@ -5,6 +5,9 @@ import Link from 'next/link';
 import {
   OPCOES_FIM,
   OPCOES_INICIO,
+  OPCOES_VOLUME,
+  VolumeBips,
+  definirVolumeBips,
   VozFim,
   VozInicio,
   bip,
@@ -27,9 +30,10 @@ interface Config {
   descanso: number; // segundos entre rondas
   vozInicio: VozInicio;
   vozFim: VozFim;
+  volumeBips: VolumeBips;
 }
 
-const CONFIG_INICIAL: Config = { minutos: 4, segundos: 0, rondas: 1, descanso: 30, vozInicio: 'start', vozFim: 'end' };
+const CONFIG_INICIAL: Config = { minutos: 4, segundos: 0, rondas: 1, descanso: 30, vozInicio: 'start', vozFim: 'end', volumeBips: 'alto' };
 const PREDEFINIDOS = [1, 2, 3, 4, 5];
 const CHAVE_CONFIG = 'cronometro-config';
 
@@ -74,6 +78,11 @@ export default function CronometroPage() {
       // usa a configuração inicial
     }
   }, []);
+
+  // O nível de volume dos bips é usado pelo ciclo do cronómetro
+  useEffect(() => {
+    definirVolumeBips(config.volumeBips);
+  }, [config.volumeBips]);
 
   function mudarConfig(campos: Partial<Config>) {
     const nova = { ...config, ...campos };
@@ -436,6 +445,28 @@ export default function CronometroPage() {
               ))}
             </div>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-gray-600 mb-1">Volume dos bips</label>
+          <div className="flex gap-2 max-w-md">
+            {OPCOES_VOLUME.map((o) => (
+              <button
+                key={o.valor}
+                onClick={() => {
+                  mudarConfig({ volumeBips: o.valor });
+                  desbloquearAudio();
+                  bip(o.valor); // ouvir logo como fica
+                }}
+                className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                  config.volumeBips === o.valor ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                {o.valor === 'normal' ? '🔈' : o.valor === 'alto' ? '🔉' : '🔊'} {o.rotulo}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-gray-500 mt-1">Com música a tocar, use "Alto" ou "Máximo". O som também depende do volume do telemóvel.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 pt-1">

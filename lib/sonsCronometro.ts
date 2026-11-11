@@ -94,18 +94,49 @@ export function desbloquearAudio() {
   if ('speechSynthesis' in window) window.speechSynthesis.getVoices();
 }
 
-/** Bip curto. */
-export function bip(frequencia = 880, duracaoMs = 180) {
-  if (!contexto) return;
-  const agora = contexto.currentTime;
-  const osc = contexto.createOscillator();
-  const ganho = contexto.createGain();
+export type VolumeBips = 'normal' | 'alto' | 'maximo';
+
+export const OPCOES_VOLUME: { valor: VolumeBips; rotulo: string }[] = [
+  { valor: 'normal', rotulo: 'Normal' },
+  { valor: 'alto', rotulo: 'Alto' },
+  { valor: 'maximo', rotulo: 'Máximo' },
+];
+
+// Mais volume, nota mais aguda (destaca-se da música) e um pouco mais longo.
+// O "Máximo" usa o volume digital máximo sem o ultrapassar (passar o limite só distorce, não aumenta o som)
+// e uma nota perto dos 2 kHz, zona em que o ouvido é mais sensível.
+const NIVEIS: Record<VolumeBips, { ganho: number; freq: number; dur: number }> = {
+  normal: { ganho: 0.35, freq: 880, dur: 180 },
+  alto: { ganho: 0.8, freq: 1100, dur: 230 },
+  maximo: { ganho: 0.97, freq: 1760, dur: 280 },
+};
+
+let volumeAtual: VolumeBips = 'alto';
+
+export function definirVolumeBips(v: VolumeBips) {
+  volumeAtual = v;
+}
+
+/** Agenda um bip num contexto de áudio (usado pelo cronómetro e nos testes). */
+export function agendarBip(ctx: BaseAudioContext, quando: number, volume: VolumeBips) {
+  const n = NIVEIS[volume];
+  const fim = quando + n.dur / 1000;
+  const ganho = ctx.createGain();
+  ganho.gain.setValueAtTime(0.0001, quando);
+  ganho.gain.exponentialRampToValueAtTime(n.ganho, quando + 0.008);
+  ganho.gain.setValueAtTime(n.ganho, fim - 0.04);
+  ganho.gain.exponentialRampToValueAtTime(0.0001, fim);
+  ganho.connect(ctx.destination);
+  const osc = ctx.createOscillator();
   osc.type = 'square';
-  osc.frequency.value = frequencia;
-  ganho.gain.setValueAtTime(0.0001, agora);
-  ganho.gain.exponentialRampToValueAtTime(0.35, agora + 0.01);
-  ganho.gain.exponentialRampToValueAtTime(0.0001, agora + duracaoMs / 1000);
-  osc.connect(ganho).connect(contexto.destination);
-  osc.start(agora);
-  osc.stop(agora + duracaoMs / 1000 + 0.02);
+  osc.frequency.value = n.freq;
+  osc.connect(ganho);
+  osc.start(quando);
+  osc.stop(fim + 0.02);
+}
+
+/** Bip curto, com o volume escolhido na configuração. */
+export function bip(volume: VolumeBips = volumeAtual) {
+  if (!contexto) return;
+  agendarBip(contexto, contexto.currentTime, volume);
 }
