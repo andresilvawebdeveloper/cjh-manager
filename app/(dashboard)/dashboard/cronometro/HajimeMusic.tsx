@@ -8,6 +8,8 @@ import { useEffect, useRef, useState } from 'react';
 const SCRIPT_API = 'https://open.spotify.com/embed/iframe-api/v1';
 const CHAVE_LINK = 'hajime-music-link';
 const CHAVE_PAUSAR = 'hajime-music-pausar';
+// Playlist do clube, usada quando o dispositivo ainda não escolheu outra
+export const PLAYLIST_HAJIME = 'https://open.spotify.com/playlist/5OFyUo5eaZeRNIzZmG0aLI';
 
 let promessaApi: Promise<any> | null = null;
 
@@ -25,7 +27,10 @@ function carregarApi(): Promise<any> {
 
 /** Aceita links do Spotify (playlist, álbum, música, podcast) ou URIs spotify:tipo:id. Devolve o link normalizado. */
 export function normalizarLinkSpotify(texto: string): string | null {
-  const t = texto.trim();
+  let t = texto.trim();
+  // Aceitar também o código de incorporação (<iframe src="https://open.spotify.com/embed/...">)
+  const src = /src=["']([^"']+)["']/.exec(t);
+  if (src) t = src[1];
   const uri = /^spotify:(playlist|album|track|artist|show|episode):([A-Za-z0-9]+)$/.exec(t);
   if (uri) return `https://open.spotify.com/${uri[1]}/${uri[2]}`;
   try {
@@ -60,12 +65,10 @@ export default function HajimeMusic({ emCombate, cronometroAtivo }: Props) {
 
   useEffect(() => {
     try {
-      const guardado = localStorage.getItem(CHAVE_LINK);
-      if (guardado) setLink(guardado);
-      else setAEditar(true);
+      setLink(localStorage.getItem(CHAVE_LINK) || PLAYLIST_HAJIME);
       setPausarForaDoCombate(localStorage.getItem(CHAVE_PAUSAR) === '1');
     } catch {
-      setAEditar(true);
+      setLink(PLAYLIST_HAJIME);
     }
   }, []);
 
@@ -179,6 +182,22 @@ export default function HajimeMusic({ emCombate, cronometroAtivo }: Props) {
             {link && (
               <button onClick={() => setAEditar(false)} className="px-3 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-800">
                 Cancelar
+              </button>
+            )}
+            {link !== PLAYLIST_HAJIME && (
+              <button
+                onClick={() => {
+                  setLink(PLAYLIST_HAJIME);
+                  setAEditar(false);
+                  try {
+                    localStorage.removeItem(CHAVE_LINK);
+                  } catch {
+                    // sem armazenamento
+                  }
+                }}
+                className="px-3 py-2.5 text-xs font-bold text-green-700 hover:underline"
+              >
+                Voltar à playlist do clube
               </button>
             )}
           </div>
